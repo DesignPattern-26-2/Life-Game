@@ -342,6 +342,27 @@ public final class MenuSite
 		Item item = new Item(element, found, toThisMenu );
 		menusAddedBy(requester).add( item );
 		item.attachYourselfToYourParent();
+
+		// [shortcut] report the new line item to observers (a separator has no listener, so skip it)
+		if( element instanceof JMenuItem )
+			for( LineListener each : new ArrayList<LineListener>(lineListeners) )
+				each.lineAdded( toThisMenu, name, (JMenuItem)element, listener );
+	}
+
+	// [shortcut] Observer hook: lets other packages see every item added by addLine() without changing its callers
+	public interface LineListener
+	{	void lineAdded( String menuSpecifier, String name,
+							JMenuItem item, ActionListener listener );
+	}
+
+	// [shortcut] observers registered through addLineListener()
+	private static final Collection<LineListener> lineListeners =
+												new ArrayList<LineListener>();
+
+	// [shortcut] register an observer; it is told about line items added from now on
+	public static void addLineListener( LineListener listener )
+	{	assert listener != null: "null listener";
+		lineListeners.add( listener );
 	}
 
 	/*** **************************************************************
