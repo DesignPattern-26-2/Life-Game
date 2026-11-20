@@ -437,6 +437,17 @@ public final class Neighborhood implements Cell
 		amActive = false;
 	}
 
+	/** 이 블록과 모든 하위 블록이 다음 tick에 계산되도록 한다.
+	 *  @see Cell#activate
+	 */
+	public void activate()
+	{	amActive = true;
+
+		for( int row = 0; row < gridSize; ++row )
+			for( int column = 0; column < gridSize; ++column )
+				grid[row][column].activate();
+	}
+
 	/** Cause subcells to add an annotation to the indicated
 	 *  memento if they happen to be alive.
 	 */
