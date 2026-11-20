@@ -14,6 +14,16 @@ import com.holub.life.Storable;
 import com.holub.life.Clock;
 import com.holub.life.Neighborhood;
 import com.holub.life.Resident;
+import com.holub.life.edit.BoardEditor;
+import com.holub.life.edit.BrushTool;
+import com.holub.life.edit.CellBoardEditor;
+import com.holub.life.edit.CellCoordinates;
+import com.holub.life.edit.EditTool;
+import com.holub.life.edit.ClipboardEditor;
+import com.holub.life.edit.EditToolbox;
+import com.holub.life.edit.PasteTool;
+import com.holub.life.edit.SelectTool;
+import com.holub.life.edit.ToggleTool;
 
 /**
  * The Universe is a mediator that sits between the Swing
@@ -28,6 +38,8 @@ import com.holub.life.Resident;
 
 public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
+	private 		final EditToolbox toolbox;
+	private 		final SelectTool  selectTool;
 	private static	final Universe 	theInstance = new Universe();
 
 	/** The default height and width of a Neighborhood in cells.
@@ -91,17 +103,34 @@ public class Universe extends JPanel
 		setMinimumSize	( PREFERRED_SIZE );
 		setOpaque		( true			 );
 
-		addMouseListener					//{=Universe.mouse}
-		(	new MouseAdapter()
+		// 마우스 입력은 현재 선택된 편집 도구에 넘긴다. 처음 선택되어
+		// 있는 도구는 원본과 같은 "클릭하면 토글"이다.
+
+		final BoardEditor board = new CellBoardEditor( outermostCell );
+		final EditTool    toggle = new ToggleTool( board );
+		toolbox    = new EditToolbox( toggle );
+		selectTool = new SelectTool( board.width() );
+
+		MouseAdapter mouse =				//{=Universe.mouse}
+			new MouseAdapter()
 			{	public void mousePressed(MouseEvent e)
-				{	Rectangle bounds = getBounds();
-					bounds.x = 0;
-					bounds.y = 0;
-					outermostCell.userClicked(e.getPoint(),bounds);
+				{	Point cell = cellAt(e);
+					toolbox.pressed( cell.x, cell.y );
 					repaint();
 				}
-			}
-		);
+				public void mouseDragged(MouseEvent e)
+				{	Point cell = cellAt(e);
+					toolbox.dragged( cell.x, cell.y );
+					repaint();
+				}
+				public void mouseReleased(MouseEvent e)
+				{	Point cell = cellAt(e);
+					toolbox.released( cell.x, cell.y );
+					repaint();
+				}
+			};
+		addMouseListener	  ( mouse );
+		addMouseMotionListener( mouse );
 
 		MenuSite.addLine( this, "Grid", "Clear",
 			new ActionListener()
@@ -153,6 +182,129 @@ public class Universe extends JPanel
 				}
 			}
 		);
+
+		// Clock 이 Go 메뉴를 만든 뒤에 등록해서 원본 메뉴(Grid, Go)가
+		// 앞에 오고 Tool 메뉴가 그 뒤에 붙게 한다.
+
+		addEditMenu( new ClipboardEditor(board, selectTool) );
+
+		addToolToMenu( toggle,					Cursor.DEFAULT_CURSOR,	 KEEP_RUNNING );
+		addToolToMenu( BrushTool.pen(board),	Cursor.CROSSHAIR_CURSOR, KEEP_RUNNING );
+		addToolToMenu( BrushTool.eraser(board),	Cursor.HAND_CURSOR,		 KEEP_RUNNING );
+		addToolToMenu( selectTool,				Cursor.TEXT_CURSOR,		 PAUSE_GAME   );
+	}
+
+	private static final boolean KEEP_RUNNING = false, PAUSE_GAME = true;
+
+	/** Tool 메뉴에 도구를 하나 올린다. */
+	private void addToolToMenu( final EditTool tool, final int cursor,
+								final boolean pauseGame )
+	{	MenuSite.addLine( this, "Tool", tool.name(),
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	useTool( tool, cursor, pauseGame );
+				}
+			}
+		);
+	}
+
+	/** 현재 도구를 바꾸고, 어떤 도구를 쓰는 중인지 알 수 있게 마우스
+	 *  커서 모양을 바꾼다.
+	 *
+	 *  @param pauseGame true 이면 게임을 멈춘다. 영역 선택은 셀이 계속
+	 *  		바뀌는 중에는 "무엇을 골랐는지"가 의미가 없어지므로 멈춘
+	 *  		상태에서 한다. 다시 실행하려면 Go 메뉴를 쓴다.
+	 */
+	private void useTool( EditTool tool, int cursor, boolean pauseGame )
+	{	if( pauseGame )
+			Clock.instance().stop();
+		toolbox.select( tool );
+		setCursor( Cursor.getPredefinedCursor(cursor) );
+	}
+
+	/** Edit 메뉴를 만든다. 무엇을 할지는 ClipboardEditor 가 판단하고,
+	 *  여기서는 메뉴 항목과 연결한 뒤 화면을 다시 그리기만 한다.
+	 */
+	private void addEditMenu( final ClipboardEditor clipboard )
+	{
+		final EditTool paste = new PasteTool( clipboard );
+
+		MenuSite.addLine( this, "Edit", "Copy",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	clipboard.copy();
+				}
+			}
+		);
+
+		MenuSite.addLine( this, "Edit", "Cut",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	clipboard.cut();
+					repaint();
+				}
+			}
+		);
+
+		// 붙여넣을 위치는 마우스로 정하므로, Paste 는 바로 붙이지 않고
+		// 붙여넣기 도구로 바꾼다. 복사한 것이 없으면 도구를 바꾸지 않는다.
+
+		MenuSite.addLine( this, "Edit", "Paste",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	if( clipboard.hasContent() )
+						useTool( paste, Cursor.MOVE_CURSOR, KEEP_RUNNING );
+				}
+			}
+		);
+
+		MenuSite.addLine( this, "Edit", "Delete",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	clipboard.deleteSelection();
+					repaint();
+				}
+			}
+		);
+
+		MenuSite.addLine( this, "Edit", "Deselect",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	selectTool.clear();
+					repaint();
+				}
+			}
+		);
+	}
+
+	private static final Color SELECTION_COLOR = new Color( 0, 70, 200 );
+
+	/** 선택 영역이 있으면 그 테두리를 그린다. 반투명 채우기를 쓰지 않는
+	 *  이유: 게임이 도는 동안에는 바뀐 블록만 다시 그려지므로(refreshNow),
+	 *  그 위에 매번 덧칠하면 안 바뀐 부분의 색이 점점 진해진다. 불투명한
+	 *  테두리는 몇 번을 다시 그려도 결과가 같다.
+	 */
+	private void paintSelection( Graphics g )
+	{	Rectangle selected = selectTool.selection();
+		if( selected == null )
+			return;
+
+		int pixelsPerCell = getBounds().width / outermostCell.widthInCells();
+
+		Graphics2D g2 = (Graphics2D) g.create();
+		g2.setColor ( SELECTION_COLOR );
+		g2.setStroke( new BasicStroke(3) );
+		g2.drawRect ( selected.x      * pixelsPerCell,
+					  selected.y      * pixelsPerCell,
+					  selected.width  * pixelsPerCell,
+					  selected.height * pixelsPerCell );
+		g2.dispose();
+	}
+
+	/** 마우스 이벤트가 일어난 위치를 셀 좌표로 바꾼다. */
+	private Point cellAt( MouseEvent e )
+	{	return CellCoordinates.fromPixel( e.getPoint(), getBounds().width,
+										  outermostCell.widthInCells() );
 	}
 
 	/** Singleton Accessor. The Universe object itself is manufactured
@@ -221,6 +373,7 @@ public class Universe extends JPanel
 		panelBounds.x = 0;
 		panelBounds.y = 0;
 		outermostCell.redraw(g, panelBounds, true);		//{=Universe.redraw1}
+		paintSelection(g);
 	}
 
 	/** Force a screen refresh by queing a request on
@@ -245,6 +398,7 @@ public class Universe extends JPanel
 						panelBounds.x = 0;
 						panelBounds.y = 0;
 						outermostCell.redraw(g, panelBounds, false); //{=Universe.redraw2}
+						paintSelection(g);
 					}
 					finally
 					{	g.dispose();
