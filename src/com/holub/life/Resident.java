@@ -78,7 +78,7 @@ public final class Resident implements Cell
 	}
 
 	public boolean transition()
-	{	boolean changed = isStable();
+	{	boolean changed = !isStable();
 		amAlive = willBeAlive;
 		return changed;
 	}
@@ -104,6 +104,9 @@ public final class Resident implements Cell
 
 	public void	   clear()			{amAlive = willBeAlive = false; }
 	public boolean isAlive()		{return amAlive;			    }
+	public void accept(Cell.Visitor visitor, int x, int y)
+	{	visitor.visit(this, x, y);
+	}
 	public Cell    create()			{return new Resident();			}
 	public int 	   widthInCells()	{return 1;}
 

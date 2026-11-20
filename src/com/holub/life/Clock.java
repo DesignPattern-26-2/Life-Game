@@ -3,8 +3,6 @@ package com.holub.life;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-import java.util.*;
-import java.util.Timer;		// overrides java.awt.timer
 import com.holub.ui.MenuSite;
 import com.holub.tools.Publisher;
 
@@ -27,15 +25,15 @@ import com.holub.tools.Publisher;
  */
 
 public class Clock
-{	private Timer			clock		= new Timer();
-	private TimerTask		tick		= null;
+{	private final Timer timer = new Timer(0, event -> tick());
 
 	// The clock can't be an everything-is-static singleton because
 	// it creates a menu, and it can't do that until the menus
 	// are established.
 	//
 	private Clock()
-	{	createMenus();
+	{	timer.setInitialDelay(0);
+		createMenus();
 	}
 
 	private static Clock instance;
@@ -57,16 +55,10 @@ public class Clock
 	 */
 
 	public void startTicking( int millisecondsBetweenTicks )
-	{	if(tick != null)
-		{	tick.cancel();
-			tick=null;
-		}
-
-		if( millisecondsBetweenTicks > 0 )
-		{	tick =	new TimerTask()
-					{	public void run(){ tick(); }
-					};
-			clock.scheduleAtFixedRate( tick, 0, millisecondsBetweenTicks);
+	{	timer.stop();
+		if (millisecondsBetweenTicks > 0)
+		{	timer.setDelay(millisecondsBetweenTicks);
+			timer.start();
 		}
 	}
 

@@ -12,10 +12,8 @@ import com.holub.ui.MenuSite;
 
 public final class Life extends JFrame
 {	
-	private static JComponent universe;
-
 	public static void main( String[] arguments )
-	{	new Life();
+	{	SwingUtilities.invokeLater(Life::new);
 	}
 
 	private Life()
@@ -28,7 +26,9 @@ public final class Life extends JFrame
 
 		setDefaultCloseOperation	( EXIT_ON_CLOSE 		);
 		getContentPane().setLayout	( new BorderLayout()	);
-		getContentPane().add( Universe.instance(), BorderLayout.CENTER); //{=life.java.install}
+		Universe universe = Universe.instance();
+		getContentPane().add(universe, BorderLayout.CENTER);
+		getContentPane().add(new StatisticsPanel(universe.statistics()), BorderLayout.EAST);
 
 		pack();
 		setVisible( true );

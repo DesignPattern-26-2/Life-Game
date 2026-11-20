@@ -28,6 +28,7 @@ import com.holub.life.Resident;
 
 public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
+	private final StatisticsTracker statistics = new StatisticsTracker();
 	private static	final Universe 	theInstance = new Universe();
 
 	/** The default height and width of a Neighborhood in cells.
@@ -67,24 +68,6 @@ public class Universe extends JPanel
 						   outermostCell.widthInCells() * DEFAULT_CELL_SIZE
 						);
 
-		addComponentListener
-		(	new ComponentAdapter()
-			{	public void componentResized(ComponentEvent e)
-				{
-					// Make sure that the cells fit evenly into the
-					// total grid size so that each cell will be the
-					// same size. For example, in a 64x64 grid, the
-					// total size must be an even multiple of 63.
-
-					Rectangle bounds = getBounds();
-					bounds.height /= outermostCell.widthInCells();
-					bounds.height *= outermostCell.widthInCells();
-					bounds.width  =  bounds.height;
-					setBounds( bounds );
-				}
-			}
-		);
-
 		setBackground	( Color.white	 );
 		setPreferredSize( PREFERRED_SIZE );
 		setMaximumSize	( PREFERRED_SIZE );
@@ -94,10 +77,12 @@ public class Universe extends JPanel
 		addMouseListener					//{=Universe.mouse}
 		(	new MouseAdapter()
 			{	public void mousePressed(MouseEvent e)
-				{	Rectangle bounds = getBounds();
-					bounds.x = 0;
-					bounds.y = 0;
-					outermostCell.userClicked(e.getPoint(),bounds);
+				{	Rectangle bounds = boardBounds();
+					Point point = e.getPoint();
+					if (!bounds.contains(point)) return;
+					point.translate(-bounds.x, -bounds.y);
+					outermostCell.userClicked(point, bounds);
+					resetStatistics();
 					repaint();
 				}
 			}
@@ -107,6 +92,7 @@ public class Universe extends JPanel
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
 				{	outermostCell.clear();
+					resetStatistics();
 					repaint();
 				}
 			}
@@ -139,20 +125,26 @@ public class Universe extends JPanel
 			}
 		);
 
-		Clock.instance().addClockListener //{=Universe.clock.subscribe}
-		(	new Clock.Listener()
-			{	public void tick()
-				{	if( outermostCell.figureNextState
-						   ( Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,
-							 Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY
-						   )
-					  )
-					{	if( outermostCell.transition() )
-							refreshNow();
-					}
-				}
-			}
-		);
+		resetStatistics();
+		Clock.instance().addClockListener(this::advanceOneGeneration);
+	}
+
+	private void advanceOneGeneration()
+	{	Cell outside = Cell.DUMMY;
+		if (outermostCell.figureNextState(outside, outside, outside, outside,
+				outside, outside, outside, outside)) {
+			outermostCell.transition();
+			repaint();
+		}
+		statistics.record(BoardSnapshot.capture(outermostCell));
+	}
+
+	StatisticsTracker statistics()
+	{	return statistics;
+	}
+
+	private void resetStatistics()
+	{	statistics.reset(BoardSnapshot.capture(outermostCell));
 	}
 
 	/** Singleton Accessor. The Universe object itself is manufactured
@@ -164,19 +156,15 @@ public class Universe extends JPanel
 	}
 
 	private void doLoad()
-	{	try
+	{	try (FileInputStream in = new FileInputStream(
+				Files.userSelected(".", ".life", "Life File", "Load")))
 		{
-			FileInputStream in = new FileInputStream(
-			   Files.userSelected(".",".life","Life File","Load"));
-
-			Clock.instance().stop();		// stop the game and
-			outermostCell.clear();			// clear the board.
-
+			Clock.instance().stop();
 			Storable memento = outermostCell.createMemento();
 			memento.load( in );
+			outermostCell.clear();
 			outermostCell.transfer( memento, new Point(0,0), Cell.LOAD );
-
-			in.close();
+			resetStatistics();
 		}
 		catch( IOException theException )
 		{	JOptionPane.showMessageDialog( null, "Read Failed!",
@@ -205,52 +193,15 @@ public class Universe extends JPanel
 		}
 	}
 
-	/** Override paint to ask the outermost Neighborhood
-	 *  (and any subcells) to draw themselves recursively.
-	 *  All knowledge of screen size is also encapsulated.
-	 *  (The size is passed into the outermost <code>Cell</code>.)
-	 */
-
-	public void paint(Graphics g)
-	{
-		Rectangle panelBounds = getBounds();
-		Rectangle clipBounds  = g.getClipBounds();
-
-		// The panel bounds is relative to the upper-left
-		// corner of the screen. Pretend that it's at (0,0)
-		panelBounds.x = 0;
-		panelBounds.y = 0;
-		outermostCell.redraw(g, panelBounds, true);		//{=Universe.redraw1}
+	private Rectangle boardBounds()
+	{	int cells = outermostCell.widthInCells();
+		int side = Math.min(getWidth(), getHeight()) / cells * cells;
+		return new Rectangle((getWidth() - side) / 2, (getHeight() - side) / 2, side, side);
 	}
 
-	/** Force a screen refresh by queing a request on
-	 *  the Swing event queue. This is an example of the
-	 *  Active Object pattern (not covered by the Gang of Four).
-	 *  This method is called on every clock tick. Note that
-	 *  the redraw() method on a given <code>Cell</code>
-	 *  does nothing if the <code>Cell</code> doesn't
-	 *  have to be refreshed.
-	 */
-
-	private void refreshNow()
-	{	SwingUtilities.invokeLater
-		(	new Runnable()
-			{	public void run()
-				{	Graphics g = getGraphics();
-					if( g == null )		// Universe not displayable
-						return;
-					try
-					{
-						Rectangle panelBounds = getBounds();
-						panelBounds.x = 0;
-						panelBounds.y = 0;
-						outermostCell.redraw(g, panelBounds, false); //{=Universe.redraw2}
-					}
-					finally
-					{	g.dispose();
-					}
-				}
-			}
-		);
+	@Override protected void paintComponent(Graphics g)
+	{	super.paintComponent(g);
+		Rectangle bounds = boardBounds();
+		if (bounds.width > 0) outermostCell.redraw(g, bounds, true);
 	}
 }

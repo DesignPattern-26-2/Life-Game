@@ -14,6 +14,18 @@ import com.holub.life.Storable;
 
 public interface Cell
 {
+	/** Read committed cell states using board coordinates. */
+	interface Visitor
+	{
+		void visit(Resident resident, int x, int y);
+
+		default void visit(Neighborhood block, int x, int y)
+		{	block.visitChildren(this, x, y);
+		}
+	}
+
+	void accept(Visitor visitor, int x, int y);
+
 	/** Figure out the next state of the cell, given the specified
 	 *  neighbors.
 	 *  @return true if the cell is unstable (changed state).
@@ -136,6 +148,8 @@ public interface Cell
 
 	public static final Cell DUMMY = new Cell()
 	{
+		public void accept(Visitor visitor, int x, int y) {}
+
 		public boolean figureNextState(Cell n,  Cell s,  Cell e,  Cell w,
 									   Cell ne, Cell nw, Cell se, Cell sw)
 											{return true;  			  }

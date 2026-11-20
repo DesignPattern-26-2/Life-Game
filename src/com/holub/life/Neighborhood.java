@@ -427,6 +427,18 @@ public final class Neighborhood implements Cell
 	{	return gridSize * grid[0][0].widthInCells();
 	}
 
+	public void accept(Cell.Visitor visitor, int x, int y)
+	{	visitor.visit(this, x, y);
+	}
+
+	void visitChildren(Cell.Visitor visitor, int x, int y)
+	{
+		int stride = grid[0][0].widthInCells();
+		for (int row = 0; row < gridSize; row++)
+			for (int column = 0; column < gridSize; column++)
+				grid[row][column].accept(visitor, x + column * stride, y + row * stride);
+	}
+
 	public void clear()
 	{	activeEdges.clear();
 
@@ -449,14 +461,10 @@ public final class Neighborhood implements Cell
 
 		for( int row = 0; row < gridSize; ++row )
 		{   for( int column = 0; column < gridSize; ++column )
-			{	if(grid[row][column].transfer(memento,upperLeft,load))
-					amActive = true;
-
-				Direction d =
-						grid[row][column].isDisruptiveTo();
-
-				if( !d.equals( Direction.NONE ) )
-					activeEdges.add(d);
+			{	if (grid[row][column].transfer(memento, upperLeft, load) && load)
+				{	amActive = true;
+					rememberThatCellAtEdgeChangedState(row, column);
+				}
 
 				upperLeft.translate( subcellWidth, 0);
 			}
