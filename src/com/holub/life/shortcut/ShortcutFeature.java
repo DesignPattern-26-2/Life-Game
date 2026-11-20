@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 
+import com.holub.life.shortcut.ui.ShortcutDialog;
 import com.holub.ui.MenuSite;
 
 /**
@@ -15,7 +16,8 @@ import com.holub.ui.MenuSite;
  *
  * 두 단계로 나뉜다.
  *   1. 생성자  : 메뉴 수집을 시작한다. 다른 메뉴가 등록되기 "전"에 불러야 한다.
- *   2. install : 저장된 매크로와 키맵을 불러오고 키 바인딩을 건다. 다른 메뉴가 등록된 "뒤"에 부른다.
+ *   2. install : 저장된 매크로와 키맵을 불러오고, 키 바인딩을 걸고, "Shortcuts" 메뉴를 추가한다.
+ *                다른 메뉴가 등록된 "뒤"에 부른다(그래야 Shortcuts 메뉴가 Grid, Go 오른쪽에 온다).
  *
  * 레지스트리, 키맵 같은 부품은 Singleton이 아니라 여기서 new로 만들어 필요한 곳에 넘겨준다.
  */
@@ -58,6 +60,14 @@ public final class ShortcutFeature {
 		// 키맵이나 매크로가 바뀌면 곧바로 파일에 저장한다.
 		keymap.addObserver(this::saveKeymap);
 		macros.addObserver(this::saveMacros);
+
+		// "Shortcuts" 메뉴. 이 항목도 addLine()을 거치므로 명령으로 수집되어 단축키를 받을 수 있다.
+		// 창은 한 번만 만들어 다시 쓴다(열 때마다 만들면 표의 관찰자가 계속 쌓인다).
+		final ShortcutDialog dialog = new ShortcutDialog(frame, registry, keymap, macros);
+		MenuSite.addLine(this, "Shortcuts", "Edit Shortcuts...", e -> {
+			dialog.setLocationRelativeTo(frame);
+			dialog.setVisible(true);
+		});
 	}
 
 	/**
