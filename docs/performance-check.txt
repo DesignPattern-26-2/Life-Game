@@ -1,0 +1,12 @@
+64x64 boards, seeded 30% density, seeds 1..4, 1800 ticks each; Swing EDT/headless.
+Warm-up: 4 x 300 ticks. Comparing same seeds at capacities 200 and 1000.
+Capacity=200, peak retained=200
+Conway step + capture/comparison + timeline label/slider update (active calculation only): n=3154 median=0.087ms p95=0.118ms max=0.235ms
+Same, with history full: n=2362 median=0.085ms p95=0.098ms max=0.235ms
+Offscreen board + timeline drawing (sampled every 10 ticks): n=720 median=2.636ms p95=2.975ms max=4.270ms
+Capacity=1000, peak retained=1000
+Conway step + capture/comparison + timeline label/slider update (active calculation only): n=3154 median=0.087ms p95=0.113ms max=0.254ms
+Same, with history full: n=322 median=0.091ms p95=0.103ms max=0.121ms
+Offscreen board + timeline drawing (sampled every 10 ticks): n=720 median=2.574ms p95=2.796ms max=4.484ms
+1000 x 4096 cell bits = 512000 bytes = 500 KiB (excludes objects, detector anchor, and JVM).
+Native OS window/input/compositing and real timer scheduling are NOT measured; these are local observations, not responsiveness guarantees.

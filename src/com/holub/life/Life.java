@@ -15,11 +15,11 @@ public final class Life extends JFrame
 	private static JComponent universe;
 
 	public static void main( String[] arguments )
-	{	new Life();
+	{	SwingUtilities.invokeLater(Life::new);
 	}
 
 	private Life()
-	{	super( "The Game of Life. "
+	{	super( "Life Game [2026-11-22 · 종합 검증판] "
 					+"(c)2003 Allen I. Holub <http://www.holub.com>");
 
 		// Must establish the MenuSite very early in case
@@ -30,7 +30,9 @@ public final class Life extends JFrame
 		getContentPane().setLayout	( new BorderLayout()	);
 		getContentPane().add( Universe.instance(), BorderLayout.CENTER); //{=life.java.install}
 
+		getContentPane().add(new TimelinePanel(Universe.instance().history()), BorderLayout.SOUTH);
 		pack();
+		setMinimumSize(getSize());
 		setVisible( true );
 	}
 }

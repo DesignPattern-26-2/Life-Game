@@ -28,6 +28,7 @@ import com.holub.life.Resident;
 
 public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
+	private final LifeHistory history;
 	private static	final Universe 	theInstance = new Universe();
 
 	/** The default height and width of a Neighborhood in cells.
@@ -60,6 +61,9 @@ public class Universe extends JPanel
 								new Resident()
 							)
 						);
+
+		history = new LifeHistory(outermostCell);
+		history.addChangeListener(this::repaint);
 
 		final Dimension PREFERRED_SIZE =
 						new Dimension
@@ -97,7 +101,10 @@ public class Universe extends JPanel
 				{	Rectangle bounds = getBounds();
 					bounds.x = 0;
 					bounds.y = 0;
+					if (bounds.width <= 0 || !bounds.contains(e.getPoint())) return;
+					Clock.instance().stop();
 					outermostCell.userClicked(e.getPoint(),bounds);
+					history.boardEdited();
 					repaint();
 				}
 			}
@@ -106,7 +113,9 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Grid", "Clear",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	outermostCell.clear();
+				{	Clock.instance().stop();
+					outermostCell.clear();
+					history.reset();
 					repaint();
 				}
 			}
@@ -139,21 +148,11 @@ public class Universe extends JPanel
 			}
 		);
 
-		Clock.instance().addClockListener //{=Universe.clock.subscribe}
-		(	new Clock.Listener()
-			{	public void tick()
-				{	if( outermostCell.figureNextState
-						   ( Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,
-							 Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY
-						   )
-					  )
-					{	if( outermostCell.transition() )
-							refreshNow();
-					}
-				}
-			}
-		);
+		Clock.instance().addClockListener(history::advance);
 	}
+
+	/** Integration point for timeline controls and other board-editing features. */
+	public LifeHistory history() { return history; }
 
 	/** Singleton Accessor. The Universe object itself is manufactured
 	 *  in Neighborhood.createUniverse()
@@ -164,44 +163,34 @@ public class Universe extends JPanel
 	}
 
 	private void doLoad()
-	{	try
-		{
-			FileInputStream in = new FileInputStream(
-			   Files.userSelected(".",".life","Life File","Load"));
-
-			Clock.instance().stop();		// stop the game and
-			outermostCell.clear();			// clear the board.
-
+	{
+		Clock.instance().stop();
+		File file;
+		try { file = Files.userSelected(".", ".life", "Life File", "Load"); }
+		catch (FileNotFoundException cancelled) { return; }
+		try (InputStream in = new FileInputStream(file)) {
+			// Parse before mutating the visible board or its history.
 			Storable memento = outermostCell.createMemento();
-			memento.load( in );
-			outermostCell.transfer( memento, new Point(0,0), Cell.LOAD );
-
-			in.close();
-		}
-		catch( IOException theException )
-		{	JOptionPane.showMessageDialog( null, "Read Failed!",
-					"The Game of Life", JOptionPane.ERROR_MESSAGE);
+			memento.load(in);
+			outermostCell.clear();
+			outermostCell.transfer(memento, new Point(0, 0), Cell.LOAD);
+			history.reset();
+		} catch (IOException | ClassCastException ex) {
+			JOptionPane.showMessageDialog(this, "Read Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
 		}
 		repaint();
 	}
 
 	private void doStore()
-	{	try
-		{
-			FileOutputStream out = new FileOutputStream(
-				  Files.userSelected(".",".life","Life File","Write"));
-
-			Clock.instance().stop();		// stop the game
-
-			Storable memento = outermostCell.createMemento();
-			outermostCell.transfer( memento, new Point(0,0), Cell.STORE );
-			memento.flush(out);
-
-			out.close();
-		}
-		catch( IOException theException )
-		{	JOptionPane.showMessageDialog( null, "Write Failed!",
-					"The Game of Life", JOptionPane.ERROR_MESSAGE);
+	{
+		Clock.instance().stop();
+		File file;
+		try { file = Files.userSelected(".", ".life", "Life File", "Write"); }
+		catch (FileNotFoundException cancelled) { return; }
+		try (OutputStream out = new FileOutputStream(file)) {
+			outermostCell.createMemento().flush(out);
+		} catch (IOException ex) {
+			JOptionPane.showMessageDialog(this, "Write Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
