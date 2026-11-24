@@ -7,7 +7,7 @@ import java.util.BitSet;
 
 /** Compact, sealed in-memory Memento. File persistence keeps its original format. */
 final class BoardSnapshot implements Cell.Memento {
-    private final int width;
+    final int width;
     private final BitSet live;
     private boolean sealed;
 
@@ -29,7 +29,17 @@ final class BoardSnapshot implements Cell.Memento {
     }
 
     public boolean isAlive(Point location) {
-        return live.get(location.y * width + location.x);
+        return alive(location.x, location.y);
+    }
+
+    boolean alive(int x, int y) { return live.get(y * width + x); }
+    int population() { return live.cardinality(); }
+    int nextLive(int from) { return live.nextSetBit(from); }
+
+    int survivorsFrom(BoardSnapshot previous) {
+        BitSet survivors = (BitSet) live.clone();
+        survivors.and(previous.live);
+        return survivors.cardinality();
     }
 
     @Override public boolean equals(Object other) {

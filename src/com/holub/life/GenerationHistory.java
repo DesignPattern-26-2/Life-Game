@@ -3,6 +3,7 @@ package com.holub.life;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 /** Bounded, contiguous timeline. No Swing or knowledge of the board's internals.
  * Snapshots are owned by this class and must not be mutated after insertion.
@@ -50,10 +51,15 @@ public final class GenerationHistory<T> {
     }
 
     public T seek(int generation) {
+        T state = at(generation);
+        cursor = generation - first;
+        return state;
+    }
+
+    T at(int generation) {
         if (generation < first || generation > lastGeneration())
             throw new IllegalArgumentException("저장된 세대 범위: " + first + " ~ " + lastGeneration());
-        cursor = generation - first;
-        return snapshots.get(cursor);
+        return snapshots.get(generation - first);
     }
 
     /** Search only the retained timeline, using exact state equality. */
@@ -63,9 +69,13 @@ public final class GenerationHistory<T> {
 
     /** Exclude history before the current uninterrupted simulation began. */
     public int findGeneration(T state, int fromGeneration) {
+        return findMatching(entry -> entry.equals(state), fromGeneration);
+    }
+
+    int findMatching(Predicate<T> matches, int fromGeneration) {
         int start = Math.max(0, fromGeneration - first);
         for (int i = snapshots.size() - 1; i >= start; i--)
-            if (snapshots.get(i).equals(state)) return first + i;
+            if (matches.test(snapshots.get(i))) return first + i;
         return -1;
     }
 

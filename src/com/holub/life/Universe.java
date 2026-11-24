@@ -81,6 +81,8 @@ public class Universe extends JPanel
 					// total size must be an even multiple of 63.
 
 					Rectangle bounds = getBounds();
+					// Leave room for the statistics panel when the window grows taller.
+					bounds.height = Math.min(bounds.height, bounds.width);
 					bounds.height /= outermostCell.widthInCells();
 					bounds.height *= outermostCell.widthInCells();
 					bounds.width  =  bounds.height;

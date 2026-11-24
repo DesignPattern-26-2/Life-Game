@@ -30,7 +30,9 @@ public final class Life extends JFrame
 		getContentPane().setLayout	( new BorderLayout()	);
 		getContentPane().add( Universe.instance(), BorderLayout.CENTER); //{=life.java.install}
 
-		getContentPane().add(new TimelinePanel(Universe.instance().history()), BorderLayout.SOUTH);
+		LifeHistory history = Universe.instance().history();
+		getContentPane().add(new TimelinePanel(history), BorderLayout.SOUTH);
+		getContentPane().add(new StatisticsPanel(history), BorderLayout.EAST);
 		pack();
 		setMinimumSize(getSize());
 		setVisible( true );
