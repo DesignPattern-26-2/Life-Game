@@ -28,7 +28,7 @@ import com.holub.life.Resident;
 
 public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
-	private final StatisticsTracker statistics = new StatisticsTracker();
+	private final LifeSimulation simulation;
 	private static	final Universe 	theInstance = new Universe();
 
 	/** The default height and width of a Neighborhood in cells.
@@ -62,6 +62,7 @@ public class Universe extends JPanel
 							)
 						);
 
+		simulation = new LifeSimulation(outermostCell);
 		final Dimension PREFERRED_SIZE =
 						new Dimension
 						(  outermostCell.widthInCells() * DEFAULT_CELL_SIZE,
@@ -80,9 +81,9 @@ public class Universe extends JPanel
 				{	Rectangle bounds = boardBounds();
 					Point point = e.getPoint();
 					if (!bounds.contains(point)) return;
-					point.translate(-bounds.x, -bounds.y);
-					outermostCell.userClicked(point, bounds);
-					resetStatistics();
+					int pixelsPerCell = bounds.width / outermostCell.widthInCells();
+					simulation.toggle((point.x - bounds.x) / pixelsPerCell,
+							(point.y - bounds.y) / pixelsPerCell);
 					repaint();
 				}
 			}
@@ -91,8 +92,7 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Grid", "Clear",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	outermostCell.clear();
-					resetStatistics();
+				{	simulation.clear();
 					repaint();
 				}
 			}
@@ -125,26 +125,15 @@ public class Universe extends JPanel
 			}
 		);
 
-		resetStatistics();
 		Clock.instance().addClockListener(this::advanceOneGeneration);
 	}
 
 	private void advanceOneGeneration()
-	{	Cell outside = Cell.DUMMY;
-		if (outermostCell.figureNextState(outside, outside, outside, outside,
-				outside, outside, outside, outside)) {
-			outermostCell.transition();
-			repaint();
-		}
-		statistics.record(BoardSnapshot.capture(outermostCell));
+	{	if (simulation.advance()) repaint();
 	}
 
 	StatisticsTracker statistics()
-	{	return statistics;
-	}
-
-	private void resetStatistics()
-	{	statistics.reset(BoardSnapshot.capture(outermostCell));
+	{	return simulation.statistics;
 	}
 
 	/** Singleton Accessor. The Universe object itself is manufactured
@@ -160,11 +149,7 @@ public class Universe extends JPanel
 				Files.userSelected(".", ".life", "Life File", "Load")))
 		{
 			Clock.instance().stop();
-			Storable memento = outermostCell.createMemento();
-			memento.load( in );
-			outermostCell.clear();
-			outermostCell.transfer( memento, new Point(0,0), Cell.LOAD );
-			resetStatistics();
+			simulation.load(in);
 		}
 		catch( IOException theException )
 		{	JOptionPane.showMessageDialog( null, "Read Failed!",
@@ -174,18 +159,11 @@ public class Universe extends JPanel
 	}
 
 	private void doStore()
-	{	try
+	{	try (FileOutputStream out = new FileOutputStream(
+				Files.userSelected(".", ".life", "Life File", "Write")))
 		{
-			FileOutputStream out = new FileOutputStream(
-				  Files.userSelected(".",".life","Life File","Write"));
-
-			Clock.instance().stop();		// stop the game
-
-			Storable memento = outermostCell.createMemento();
-			outermostCell.transfer( memento, new Point(0,0), Cell.STORE );
-			memento.flush(out);
-
-			out.close();
+			Clock.instance().stop();
+			simulation.store(out);
 		}
 		catch( IOException theException )
 		{	JOptionPane.showMessageDialog( null, "Write Failed!",

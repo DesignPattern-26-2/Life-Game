@@ -64,6 +64,9 @@ final class StatisticsPanel extends JPanel {
         JPanel navigation = new JPanel(new BorderLayout(6, 0));
         slider.getAccessibleContext().setAccessibleName("조회할 세대");
         metric.getAccessibleContext().setAccessibleName("추이 그래프 지표");
+        chart.getAccessibleContext().setAccessibleName("세대별 추이 그래프");
+        map.getAccessibleContext().setAccessibleName("군집 지도");
+        cellInfo.getAccessibleContext().setAccessibleName("선택한 셀의 이력");
         navigation.add(slider, BorderLayout.CENTER);
         navigation.add(latest, BorderLayout.EAST);
         add(navigation, BorderLayout.SOUTH);
