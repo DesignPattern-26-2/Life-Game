@@ -1,0 +1,5 @@
+# Generated Java output and local test data
+/bin/
+/build/
+*.class
+/.metadata/

@@ -14,6 +14,7 @@ import com.holub.life.Storable;
 import com.holub.life.Clock;
 import com.holub.life.Neighborhood;
 import com.holub.life.Resident;
+import com.holub.life.patterns.PatternLibraryMenu;
 
 /**
  * The Universe is a mediator that sits between the Swing
@@ -138,6 +139,9 @@ public class Universe extends JPanel
 		        }
 			}
 		);
+
+        // Keep editor/storage details outside the original simulation mediator.
+        PatternLibraryMenu.installWhenReady(this, outermostCell);
 
 		Clock.instance().addClockListener //{=Universe.clock.subscribe}
 		(	new Clock.Listener()
