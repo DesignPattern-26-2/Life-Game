@@ -17,9 +17,8 @@ public final class StoredPattern implements LifePattern {
     private final Point[] cells;
 
     public StoredPattern(String name, int width, int height, Point[] cells) {
-        if (name == null || name.trim().isEmpty() || name.trim().length() > 80
-                || name.trim().equalsIgnoreCase("new..."))
-            throw new IllegalArgumentException("패턴 이름을 1~80자로 입력하세요. new...는 사용할 수 없습니다.");
+        if (name == null || name.trim().isEmpty() || name.trim().length() > 80)
+            throw new IllegalArgumentException("패턴 이름을 1~80자로 입력하세요.");
         for (char c : name.toCharArray())
             if (Character.isISOControl(c))
                 throw new IllegalArgumentException("패턴 이름에 제어 문자를 사용할 수 없습니다.");

@@ -37,7 +37,7 @@ public final class PatternEditorModel {
     public boolean canDelete() { return selected >= 0 && !isDirty(); }
     public boolean canLoad() { return selected >= 0 && !isDirty(); }
 
-    /** The controller asks about unsaved work before calling select. -1 means new... */
+    /** -1 clears the selection; there is no synthetic new... list entry. */
     public void select(int index) {
         if (index < -1 || index >= patterns.size()) throw new IllegalArgumentException("잘못된 패턴 선택입니다.");
         selected = index;
@@ -63,6 +63,25 @@ public final class PatternEditorModel {
         if (cells.get(y * SIZE + x) != alive) { cells.set(y * SIZE + x, alive); fireChange(); }
     }
 
+    /** Import a detached board snapshot as a new, unnamed, unsaved pattern. */
+    public void importFromBoard(LifePattern pattern) {
+        StoredPattern copy = StoredPattern.copyOf(pattern);
+        BitSet imported = new BitSet(SIZE * SIZE);
+        int left = (SIZE - copy.width()) / 2, top = (SIZE - copy.height()) / 2;
+        for (Point point : copy.liveCells()) imported.set((top + point.y) * SIZE + left + point.x);
+        selected = -1;
+        name = "";
+        savedName = "";
+        savedCells.clear();
+        cells.clear();
+        cells.or(imported);
+        fireChange();
+    }
+
+    public StoredPattern previewPattern() {
+        return cells.isEmpty() ? null : patternFromCells("미리보기");
+    }
+
     private static void checkCoordinate(int x, int y) {
         if (x < 0 || x >= SIZE || y < 0 || y >= SIZE)
             throw new IllegalArgumentException("셀 좌표가 편집 영역을 벗어났습니다.");
@@ -70,6 +89,10 @@ public final class PatternEditorModel {
 
     /** Crop unused margins so the saved shape can be centered on any fitting board. */
     public StoredPattern currentPattern() {
+        return patternFromCells(name);
+    }
+
+    private StoredPattern patternFromCells(String patternName) {
         if (cells.isEmpty()) throw new IllegalArgumentException("살아 있는 셀을 하나 이상 찍어 주세요.");
         int left = SIZE, top = SIZE, right = 0, bottom = 0;
         for (int bit = cells.nextSetBit(0); bit >= 0; bit = cells.nextSetBit(bit + 1)) {
@@ -80,12 +103,15 @@ public final class PatternEditorModel {
         int index = 0;
         for (int bit = cells.nextSetBit(0); bit >= 0; bit = cells.nextSetBit(bit + 1))
             points[index++] = new Point(bit % SIZE - left, bit / SIZE - top);
-        return new StoredPattern(name, right - left + 1, bottom - top + 1, points);
+        return new StoredPattern(patternName, right - left + 1, bottom - top + 1, points);
     }
 
     public void save() throws IOException {
         if (!canSave()) return;
         StoredPattern pattern = currentPattern();
+        // Validate on save, not file load: legacy patterns named Current remain readable.
+        if ("Current".equalsIgnoreCase(pattern.name()))
+            throw new IllegalArgumentException("Current는 현재 보드의 임시 이름입니다. 다른 이름을 입력하세요.");
         List<StoredPattern> next = new ArrayList<StoredPattern>(patterns);
         if (selected < 0) next.add(pattern); else next.set(selected, pattern);
         StoredPattern.validateCatalog(next);

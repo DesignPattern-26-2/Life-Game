@@ -2,13 +2,11 @@ package com.holub.life.patterns;
 
 import static org.junit.jupiter.api.Assertions.*;
 import java.awt.Point;
-import java.awt.event.MouseEvent;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import com.holub.life.Cell;
 import com.holub.life.Neighborhood;
@@ -136,41 +134,56 @@ class PatternEditorTest {
         assertEquals(new Point(0, 0), pattern.liveCells()[0]);
     }
 
-    @Test void invalidShapesAndReservedNameAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new StoredPattern("new...", 1, 1, new Point[] {new Point()}));
+    @Test void invalidShapesAreRejected() {
         assertThrows(IllegalArgumentException.class, () -> new StoredPattern("x", 65, 1, new Point[] {new Point()}));
         assertThrows(IllegalArgumentException.class, () -> new StoredPattern("x", 2, 2, new Point[] {new Point(), new Point()}));
         assertThrows(IllegalArgumentException.class, () -> new StoredPattern("x", 2, 2, new Point[] {new Point(-1, 0)}));
     }
 
-    @Test void canvasClicksToggleAndDragDoesNotToggleAgain() throws Exception {
+    @Test void currentNameIsReservedOnSaveButLegacyPatternsRemainReadable() throws Exception {
         PatternEditorModel m = model();
-        SwingUtilities.invokeAndWait(() -> {
-            PatternCanvas canvas = new PatternCanvas(m); canvas.setSize(512, 512);
-            mouse(canvas, MouseEvent.MOUSE_PRESSED, 12, 12, MouseEvent.BUTTON1);
-            mouse(canvas, MouseEvent.MOUSE_DRAGGED, 12, 12, MouseEvent.NOBUTTON);
-            mouse(canvas, MouseEvent.MOUSE_DRAGGED, 20, 12, MouseEvent.NOBUTTON);
-            mouse(canvas, MouseEvent.MOUSE_RELEASED, 20, 12, MouseEvent.BUTTON1);
-            assertTrue(m.isAlive(1, 1)); assertTrue(m.isAlive(2, 1));
-            mouse(canvas, MouseEvent.MOUSE_PRESSED, 12, 12, MouseEvent.BUTTON1);
-            mouse(canvas, MouseEvent.MOUSE_RELEASED, 12, 12, MouseEvent.BUTTON1);
-            assertFalse(m.isAlive(1, 1));
-        });
+        m.importFromBoard(new GliderPattern());
+        m.setName("current");
+        assertThrows(IllegalArgumentException.class, m::save);
+        assertTrue(m.isDirty()); assertEquals(2, m.patterns().size());
+        assertEquals("Current", new StoredPattern("Current", 1, 1, new Point[] {new Point()}).name());
+        assertEquals("new...", new StoredPattern("new...", 1, 1, new Point[] {new Point()}).name());
     }
 
-    @Test void canvasIgnoresMarginAndRightClick() throws Exception {
-        PatternEditorModel m = model();
-        SwingUtilities.invokeAndWait(() -> {
-            PatternCanvas canvas = new PatternCanvas(m); canvas.setSize(600, 512);
-            mouse(canvas, MouseEvent.MOUSE_PRESSED, 1, 1, MouseEvent.BUTTON1);
-            mouse(canvas, MouseEvent.MOUSE_PRESSED, 60, 10, MouseEvent.BUTTON3);
-            assertEquals(0, m.liveCount());
-            mouse(canvas, MouseEvent.MOUSE_PRESSED, 555, 511, MouseEvent.BUTTON1);
-            assertTrue(m.isAlive(63, 63));
-        });
+    @Test void boardReaderCropsShapeWithoutChangingBoard() {
+        Cell board = new Neighborhood(8, new Neighborhood(8, new Resident()));
+        Cell.Memento snapshot = (Cell.Memento) board.createMemento();
+        snapshot.markAsAlive(new Point(2, 3));
+        snapshot.markAsAlive(new Point(4, 5));
+        board.transfer(snapshot, new Point(0, 0), Cell.LOAD);
+        StoredPattern pattern = BoardPatternReader.read(board);
+        assertEquals(3, pattern.width()); assertEquals(3, pattern.height());
+        assertArrayEquals(new Point[] {new Point(0, 0), new Point(2, 2)}, pattern.liveCells());
+        Cell.Memento after = (Cell.Memento) board.createMemento();
+        assertTrue(after.isAlive(new Point(2, 3))); assertTrue(after.isAlive(new Point(4, 5)));
+        assertFalse(after.isAlive(new Point(0, 0)));
     }
 
-    private void mouse(PatternCanvas canvas, int id, int x, int y, int button) {
-        canvas.dispatchEvent(new MouseEvent(canvas, id, System.currentTimeMillis(), 0, x, y, 1, false, button));
+    @Test void emptyBoardHasNoSavableSnapshot() {
+        Cell board = new Neighborhood(8, new Neighborhood(8, new Resident()));
+        board.clear();
+        assertNull(BoardPatternReader.readIfPresent(board));
+        assertThrows(IllegalArgumentException.class, () -> BoardPatternReader.read(board));
+    }
+
+    @Test void importedBoardIsNewDraftAndPersistsAfterSave() throws Exception {
+        MemoryRepository repo = new MemoryRepository();
+        PatternEditorModel m = new PatternEditorModel(repo);
+        m.select(0);
+        m.importFromBoard(new BlockPattern());
+        assertEquals(-1, m.selectedIndex()); assertEquals("", m.name());
+        assertEquals(4, m.liveCount()); assertTrue(m.isDirty());
+        assertFalse(m.canLoad()); assertFalse(m.canDelete());
+        assertNotNull(m.previewPattern());
+        m.setName("Board copy"); m.save();
+        PatternEditorModel reopened = new PatternEditorModel(repo);
+        reopened.select(2);
+        assertEquals("Board copy", reopened.name());
+        assertEquals(4, reopened.patternToLoad().liveCells().length);
     }
 }

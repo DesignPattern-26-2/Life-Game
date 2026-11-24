@@ -12,9 +12,10 @@ import javax.swing.event.MenuListener;
 import com.holub.life.Cell;
 import com.holub.life.Clock;
 
-/** Small integration boundary: one top-level menu opens one modal editor. */
+/** Opens a modal library with a temporary snapshot of the current board. */
 public final class PatternLibraryMenu extends JMenu {
     private boolean opening;
+    private PatternEditorDialog dialog;
 
     private PatternLibraryMenu(JComponent owner, Cell board) {
         super("Patterns");
@@ -27,13 +28,21 @@ public final class PatternLibraryMenu extends JMenu {
                     MenuSelectionManager.defaultManager().clearSelectedPath();
                     Clock.instance().stop();
                     try {
+                        if (dialog != null && dialog.isDisplayable()) {
+                            dialog.setVisible(true);
+                            dialog.toFront();
+                            dialog.requestFocus();
+                            return;
+                        }
                         PatternEditorModel model = new PatternEditorModel(FilePatternRepository.defaultRepository());
-                        new PatternEditorDialog(SwingUtilities.getWindowAncestor(owner), model, pattern -> {
+                        dialog = new PatternEditorDialog(SwingUtilities.getWindowAncestor(owner), model,
+                                BoardPatternReader.readIfPresent(board), pattern -> {
                             Clock.instance().stop();
                             PresetCommand command = new PlacePresetCommand(board, pattern);
                             command.execute();
                             owner.repaint();
-                        }).setVisible(true);
+                        });
+                        dialog.setVisible(true);
                     } catch (IOException | RuntimeException ex) {
                         JOptionPane.showMessageDialog(owner, "패턴 목록을 열 수 없습니다.\n" + ex.getMessage(),
                                 "Patterns", JOptionPane.ERROR_MESSAGE);
