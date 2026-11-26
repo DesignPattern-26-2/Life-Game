@@ -2,19 +2,17 @@ package com.holub.life;
 
 import java.awt.Point;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** Board evolution and bounded snapshots. Calls are serialized on Swing's EDT.
- * Actual generation can exceed the last stored generation after a cycle is found.
+ * Repeated generations remain navigable and share the same statistics timeline.
  */
 public final class LifeHistory {
-    public static final int DEFAULT_CAPACITY = 1000;
+    public static final int DEFAULT_CAPACITY = 100_000;
+    private static final int EXACT_CYCLE_WINDOW = 1000;
     private final Cell board;
     private final GenerationHistory<GenerationStatistics> history;
     static final int TREND_LENGTH = 120;
-    // Display window only for live generations beyond the navigable timeline.
-    private final GenerationStatistics[] liveWindow = new GenerationStatistics[TREND_LENGTH];
     private final CycleDetector<BoardSnapshot> detector = new CycleDetector<>();
     private final List<Runnable> listeners = new ArrayList<>();
     private int generation;
@@ -59,35 +57,29 @@ public final class LifeHistory {
         generation = next;
         BoardSnapshot snapshot = currentSnapshot();
         if (!isRepeating()) {
-            int previous = history.findMatching(entry -> entry.board.equals(snapshot), prior.segmentStart);
+            int previous = history.findMatching(entry -> entry.board.equals(snapshot),
+                    Math.max(prior.segmentStart, history.lastGeneration() - EXACT_CYCLE_WINDOW + 1));
             int longPeriod = detector.observe(snapshot);
             if (previous >= 0 || longPeriod > 0) {
                 cyclePeriod = previous >= 0 ? generation - previous : longPeriod;
                 detectedAt = generation;
-                // Do not append the first repeated state or any subsequent state.
             }
         }
         GenerationStatistics entry = new GenerationStatistics(snapshot, next, prior, detectedAt, cyclePeriod);
-        if (isRepeating()) liveWindow[next % TREND_LENGTH] = entry;
-        else history.append(entry);
+        history.append(entry);
         changed();
     }
 
     private BoardSnapshot currentSnapshot() {
-        // After a short cycle is known, all of its phases already have sealed Mementos.
-        int cycleStart = detectedAt - cyclePeriod;
-        if (isRepeating() && cycleStart >= firstGeneration()) {
-            int phase = (generation - detectedAt) % cyclePeriod;
-            return history.at(cycleStart + phase).board;
-        }
+        // Immutable phases can be shared without skipping logical generation records.
+        int previousPhase = generation - cyclePeriod;
+        if (isRepeating() && previousPhase >= firstGeneration() && previousPhase <= lastGeneration())
+            return history.at(previousPhase).board;
         return BoardSnapshot.capture(board);
     }
 
     GenerationStatistics statisticsAt(int target) {
-        if (target <= lastGeneration()) return history.at(target);
-        if (target > generation || generation - target >= TREND_LENGTH)
-            throw new IllegalArgumentException("Generation outside the live statistics window: " + target);
-        return liveWindow[target % TREND_LENGTH];
+        return history.at(target);
     }
 
     int statisticsStart(int window) {
@@ -97,7 +89,6 @@ public final class LifeHistory {
 
     public void seek(int target) {
         BoardSnapshot snapshot = history.seek(target).board;
-        if (generation > lastGeneration()) Arrays.fill(liveWindow, null);
         board.clear();
         board.transfer(snapshot, new Point(0, 0), Cell.LOAD);
         generation = target;
@@ -116,12 +107,7 @@ public final class LifeHistory {
     public void boardEdited() {
         BoardSnapshot snapshot = BoardSnapshot.capture(board);
         GenerationStatistics baseline = GenerationStatistics.baseline(snapshot, generation);
-        if (generation > history.lastGeneration()) {
-            // Unsaved live time has a gap. Begin a new contiguous segment here.
-            history.resetAt(generation, baseline);
-        } else {
-            history.replaceCurrent(baseline);
-        }
+        history.replaceCurrent(baseline);
         clearCycle(snapshot);
         changed();
     }
@@ -137,7 +123,6 @@ public final class LifeHistory {
     private void clearCycle(BoardSnapshot snapshot) {
         // Only edits/reset invalidate the completed trajectory and its analysis.
         // Earlier snapshots remain navigable but are not cycle evidence.
-        Arrays.fill(liveWindow, null);
         stable = false;
         cyclePeriod = 0;
         detectedAt = -1;

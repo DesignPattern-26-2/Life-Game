@@ -15,7 +15,7 @@ class InputAndTimerAuditTest {
    if(child instanceof Container){T found=find((Container)child,type,text);if(found!=null)return found;}
   }return null;
  }
- static LifeHistory history(){return new LifeHistory(new AuditSupport.CounterBoard(1000000));}
+ static LifeHistory history(){return new LifeHistory(new AuditSupport.CounterBoard(1000000), 1000);}
  @ParameterizedTest @ValueSource(strings={""," ","abc","1.5","1e2","-1","21","2147483648","-2147483649"})
  void invalidGenerationDoesNotAlterPositionOrRange(String input) throws Exception{
   SwingUtilities.invokeAndWait(()->{
@@ -56,7 +56,7 @@ class InputAndTimerAuditTest {
   AtomicReference<Throwable> failure=new AtomicReference<>();CountDownLatch done=new CountDownLatch(1);CountDownLatch extra=new CountDownLatch(1);AtomicBoolean stopped=new AtomicBoolean();
   SwingUtilities.invokeAndWait(()->{
    Cell b=AuditSupport.board(64);for(Point q:new Point[]{new Point(6,5),new Point(7,6),new Point(5,7),new Point(6,7),new Point(7,7)})AuditSupport.toggle(b,q.x,q.y);
-   LifeHistory h=new LifeHistory(b);for(int i=0;i<20;i++)h.advance();h.seek(10);
+   LifeHistory h=new LifeHistory(b, 1000);for(int i=0;i<20;i++)h.advance();h.seek(10);
    for(Point q:new Point[]{new Point(40,40),new Point(41,40),new Point(40,41),new Point(41,41)})AuditSupport.toggle(b,q.x,q.y);
    h.boardEdited();for(int i=0;i<15;i++)h.advance();h.seek(9);
    Clock clock=new Clock(false);clockRef.set(clock);hRef.set(h);bRef.set(b);
@@ -87,13 +87,13 @@ class InputAndTimerAuditTest {
    find(p,JButton.class,"+1세대").doClick(0);assertEquals(33,h.currentGeneration());assertEquals(33,slider.getMaximum());
   });
  }
- @Test void editingUnsavedLiveGenerationRebasesSliderAndInputAtomically() throws Exception {
+ @Test void editingRepeatedGenerationKeepsSliderHistory() throws Exception {
   SwingUtilities.invokeAndWait(()->{
    Cell b=AuditSupport.board(8);for(int x=2;x<=4;x++)AuditSupport.toggle(b,x,3);
-   LifeHistory h=new LifeHistory(b);TimelinePanel p=new TimelinePanel(h,()->{},()->{},text->fail(text));
-   for(int i=0;i<100;i++)h.advance();assertEquals(1,h.lastGeneration());
+   LifeHistory h=new LifeHistory(b, 1000);TimelinePanel p=new TimelinePanel(h,()->{},()->{},text->fail(text));
+   for(int i=0;i<100;i++)h.advance();assertEquals(100,h.lastGeneration());
    AuditSupport.toggle(b,6,6);h.boardEdited();
-   JSlider slider=find(p,JSlider.class,null);assertEquals(100,slider.getMinimum());assertEquals(100,slider.getMaximum());assertEquals(100,slider.getValue());
+   JSlider slider=find(p,JSlider.class,null);assertEquals(0,slider.getMinimum());assertEquals(100,slider.getMaximum());assertEquals(100,slider.getValue());
    assertEquals("100",find((Container)p.getComponent(3),JTextField.class,null).getText());assertFalse(h.isRepeating());
    find(p,JButton.class,"+1세대").doClick(0);assertEquals(101,h.currentGeneration());assertEquals(101,h.lastGeneration());
   });
@@ -102,7 +102,7 @@ class InputAndTimerAuditTest {
   AtomicReference<Clock> clockRef=new AtomicReference<>();AtomicReference<LifeHistory> historyRef=new AtomicReference<>();AtomicReference<Cell> boardRef=new AtomicReference<>();
   CountDownLatch stable=new CountDownLatch(1), progressed=new CountDownLatch(1);AtomicInteger ticks=new AtomicInteger();
   SwingUtilities.invokeAndWait(()->{
-   Cell b=AuditSupport.board(8);LifeHistory h=new LifeHistory(b);Clock clock=new Clock(false);clockRef.set(clock);historyRef.set(h);boardRef.set(b);
+   Cell b=AuditSupport.board(8);LifeHistory h=new LifeHistory(b, 1000);Clock clock=new Clock(false);clockRef.set(clock);historyRef.set(h);boardRef.set(b);
    new TimelinePanel(h,clock::stop,()->clock.startTicking(1));
    clock.addClockListener(()->{ticks.incrementAndGet();h.advance();if(h.isStable())stable.countDown();if(h.currentGeneration()==3){clock.stop();progressed.countDown();}});
    clock.startTicking(1);
@@ -110,7 +110,7 @@ class InputAndTimerAuditTest {
   try{
    assertTrue(stable.await(3,TimeUnit.SECONDS));SwingUtilities.invokeAndWait(()->{assertEquals(0,historyRef.get().currentGeneration());assertEquals(1,ticks.get());
     Cell b=boardRef.get();for(int x=2;x<=4;x++)AuditSupport.toggle(b,x,3);historyRef.get().boardEdited();clockRef.get().startTicking(1);
-   });assertTrue(progressed.await(3,TimeUnit.SECONDS));SwingUtilities.invokeAndWait(()->{assertEquals(3,historyRef.get().currentGeneration());assertEquals(1,historyRef.get().lastGeneration());});
+   });assertTrue(progressed.await(3,TimeUnit.SECONDS));SwingUtilities.invokeAndWait(()->{assertEquals(3,historyRef.get().currentGeneration());assertEquals(3,historyRef.get().lastGeneration());});
   }finally{SwingUtilities.invokeAndWait(()->clockRef.get().stop());}
  }
  @Test void clockStartedOffEventThreadDeliversTicksOnEventThread() throws Exception{

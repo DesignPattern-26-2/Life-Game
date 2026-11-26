@@ -7,7 +7,7 @@ class TimelineStatisticsTest {
     @Test void blinkerMetricsFollowLiveTimeAndReplay() {
         Cell board = AuditSupport.board(8);
         for (int x = 2; x <= 4; x++) AuditSupport.toggle(board, x, 3);
-        LifeHistory history = new LifeHistory(board);
+        LifeHistory history = new LifeHistory(board, 1000);
         for (int i = 1; i <= 145; i++) {
             history.advance();
             GenerationStatistics frame = history.statisticsAt(i);
@@ -20,14 +20,14 @@ class TimelineStatisticsTest {
             assertEquals(1, GenerationMetric.CLUSTER.measure(frame));
             assertEquals(i - 1, frame.repeats);
         }
-        assertEquals(1, history.lastGeneration());
+        assertEquals(145, history.lastGeneration());
         assertEquals(26, history.statisticsStart(120));
         assertEquals(82, history.statisticsStart(64));
-        assertThrows(IllegalArgumentException.class, () -> history.statisticsAt(25));
+        assertEquals(25, history.statisticsAt(25).number);
         assertEquals(144.0 / 145, GenerationMetric.REPEAT.measure(history.statisticsAt(145)));
         history.seek(0);
         assertTrue(Double.isNaN(GenerationMetric.SURVIVAL.measure(history.statisticsAt(0))));
-        assertThrows(IllegalArgumentException.class, () -> history.statisticsAt(145));
+        assertEquals(145, history.statisticsAt(145).number);
         history.advance();
         history.advance();
         assertEquals(1, history.statisticsAt(2).repeats);
@@ -71,11 +71,11 @@ class TimelineStatisticsTest {
         }
         board.state = 4;
         history.boardEdited();
-        assertEquals(200, history.firstGeneration());
+        assertEquals(198, history.firstGeneration());
         assertEquals(200, history.statisticsStart(64));
         assertEquals(0, history.statisticsAt(200).repeats);
         assertEquals(-1, history.statisticsAt(200).detectedAt);
-        assertThrows(IllegalArgumentException.class, () -> history.statisticsAt(199));
+        assertEquals(199, history.statisticsAt(199).number);
     }
 
     @Test void clustersJoinDiagonalsAndStableTicksKeepTheSameFrame() {
@@ -83,7 +83,7 @@ class TimelineStatisticsTest {
         AuditSupport.toggle(board, 0, 0);
         AuditSupport.toggle(board, 1, 1);
         AuditSupport.toggle(board, 7, 0);
-        LifeHistory history = new LifeHistory(board);
+        LifeHistory history = new LifeHistory(board, 1000);
         GenerationStatistics initial = history.statisticsAt(0);
         assertEquals(2, initial.clusters);
         assertEquals(2.0 / 3, GenerationMetric.CLUSTER.measure(initial));

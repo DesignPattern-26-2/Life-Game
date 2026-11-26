@@ -20,9 +20,19 @@ public final class TimelinePanel extends JPanel {
     private final JButton last = new JButton("최신");
     private final JLabel message = new JLabel("실행·+1세대는 저장 기록을 먼저 재생합니다. 셀을 편집하면 이후 기록을 삭제합니다.");
     private boolean updating;
+    private final JButton playPause = new JButton("실행");
+    private boolean playing;
+    private java.util.function.BooleanSupplier running = () -> playing;
 
     public TimelinePanel(LifeHistory history) {
-        this(history, () -> Clock.instance().stop(), () -> Clock.instance().startTicking(150));
+        this(history, Clock.instance());
+    }
+
+    TimelinePanel(LifeHistory history, Clock clock) {
+        this(history, clock::stop, () -> clock.startTicking(150));
+        running = clock::isRunning;
+        clock.addStateListener(this::refreshPlayback);
+        refreshPlayback();
     }
 
     // Injectable clock actions make UI wiring independently testable.
@@ -33,8 +43,8 @@ public final class TimelinePanel extends JPanel {
     TimelinePanel(LifeHistory history, Runnable pauseAction, Runnable playAction,
                   java.util.function.Consumer<String> errorHandler) {
         this.history = history;
-        this.pauseAction = pauseAction;
-        this.playAction = playAction;
+        this.pauseAction = () -> { pauseAction.run(); playing = false; refreshPlayback(); };
+        this.playAction = () -> { playAction.run(); playing = true; refreshPlayback(); };
         this.errorHandler = errorHandler != null ? errorHandler : text ->
                 JOptionPane.showMessageDialog(this, text, "타임라인", JOptionPane.WARNING_MESSAGE);
         JSpinner.NumberEditor intervalEditor = new JSpinner.NumberEditor(interval, "0");
@@ -63,12 +73,28 @@ public final class TimelinePanel extends JPanel {
         slider.setName("timeline");
         slider.setToolTipText("저장된 세대 탐색 — 드래그를 놓으면 복원");
         add(status);
-        add(slider);
+        JPanel timeline = new JPanel(new BorderLayout());
+        timeline.setAlignmentX(Component.LEFT_ALIGNMENT);
+        timeline.add(slider, BorderLayout.NORTH);
+        DetailTimelinePanel detail = new DetailTimelinePanel(history, this.pauseAction, this.errorHandler);
+        detail.setVisible(false);
+        timeline.add(detail, BorderLayout.CENTER);
+        add(timeline);
 
         JPanel navigation = row();
         navigation.add(first); navigation.add(back);
         navigation.add(new JLabel("간격")); navigation.add(interval);
         navigation.add(forward); navigation.add(last);
+        JToggleButton zoom = new JToggleButton("확대 탐색");
+        zoom.setToolTipText("시작·끝 세대를 지정해 전체 슬라이더 아래에서 세밀하게 탐색");
+        zoom.addActionListener(e -> {
+            detail.setVisible(zoom.isSelected());
+            if (zoom.isSelected()) detail.open();
+            revalidate();
+            Window window = SwingUtilities.getWindowAncestor(this);
+            if (window != null) window.pack();
+        });
+        navigation.add(zoom);
         add(navigation);
 
         JPanel settings = row();
@@ -77,11 +103,10 @@ public final class TimelinePanel extends JPanel {
         add(settings);
 
         JPanel playback = row();
-        JButton play = new JButton("실행");
-        JButton pause = new JButton("정지");
         JButton step = new JButton("+1세대");
         step.setToolTipText("다음 저장 세대가 있으면 복원하고, 저장 끝에서만 새 세대를 계산합니다.");
-        playback.add(play); playback.add(pause); playback.add(step);
+        playPause.setName("play-pause");
+        playback.add(playPause); playback.add(step);
         add(playback);
         message.setFont(message.getFont().deriveFont(11f));
         message.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -92,7 +117,7 @@ public final class TimelinePanel extends JPanel {
 
         slider.addChangeListener(e -> {
             if (updating) return;
-            pauseAction.run();
+            this.pauseAction.run();
             if (!slider.getValueIsAdjusting()) navigate(() -> history.seek(slider.getValue()));
         });
         first.addActionListener(e -> navigate(() -> history.seek(history.firstGeneration())));
@@ -101,16 +126,21 @@ public final class TimelinePanel extends JPanel {
         forward.addActionListener(e -> navigate(() -> history.move(readInterval())));
         go.addActionListener(e -> goToGeneration());
         generation.addActionListener(e -> goToGeneration());
-        play.addActionListener(e -> {
-            if (history.isStable()) pauseAction.run(); else playAction.run();
+        playPause.addActionListener(e -> {
+            if (running.getAsBoolean() || history.isStable()) this.pauseAction.run();
+            else this.playAction.run();
         });
-        pause.addActionListener(e -> pauseAction.run());
-        step.addActionListener(e -> { pauseAction.run(); history.advance(); });
+        step.addActionListener(e -> { this.pauseAction.run(); history.advance(); });
         history.addChangeListener(() -> {
-            if (history.isStable()) pauseAction.run();
+            if (history.isStable()) this.pauseAction.run();
             refresh();
         });
         refresh();
+    }
+
+    private void refreshPlayback() {
+        playPause.setText(running.getAsBoolean() ? "정지" : "실행");
+        playPause.getAccessibleContext().setAccessibleName(playPause.getText());
     }
 
     private JPanel row() {
@@ -161,7 +191,7 @@ public final class TimelinePanel extends JPanel {
             repetition.setText(history.isStable()
                     ? "안정 상태 · 셀 변화가 없어 세대 진행을 멈췄습니다."
                     : history.isRepeating()
-                    ? String.format("%d세대에 반복 감지 · 주기 %d · 저장 중단, 현재 세대는 계속 진행",
+                    ? String.format("%d세대에 반복 감지 · 주기 %d · 반복 중에도 모든 세대 저장",
                         history.detectedAtGeneration(), history.cyclePeriod())
                     : "반복 감지 대기 · 슬라이더와 번호 이동은 저장 범위 안에서 가능합니다.");
         } finally { updating = false; }

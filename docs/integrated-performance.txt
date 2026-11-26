@@ -1,0 +1,17 @@
+Note: src/com/holub/ui/MenuSite.java uses or overrides a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+Built: build/Life-Game-timeline.jar
+java=26.0.2.1 capacity=100000 heapMaxMiB=127
+snapshotDeepBytes=576 referenceArrayBytes=400016
+statisticsEntryBytes=56
+fillSeconds=0.407 first=101 last=100100 retained=100000
+heapAfterExplicitGC=63.24MiB (synthetic model only)
+full-retention synthetic advance+snapshot+bounded-cycle-search+timeline+statistics-UI n=10000 median=0.0215ms p95=0.0617ms p99=0.1893ms max=29.5621ms
+GCmsDuringMeasuredSteps=38
+discardFutureMs=0.569 retained=1
+64x64 Blinker, 100k default, fill 5.653s
+real Conway+statistics+eviction+both UI updates full 100k n=10000 median=0.0678ms p95=0.0935ms p99=0.3263ms max=1.2522ms
+offscreen board+custom timeline+statistics chart n=200 median=3.1246ms p95=4.9630ms p99=6.8658ms max=27.7349ms
+image size=864x759

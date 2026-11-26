@@ -32,7 +32,7 @@ class LifeHistoryTest {
         Set<Point> zero=live(b); h.advance(); Set<Point> one=live(b);
         assertEquals(next(zero),one); h.advance(); assertEquals(zero,live(b));
         h.seek(1); assertEquals(one,live(b)); h.seek(0); assertEquals(zero,live(b));
-        assertThrows(IllegalArgumentException.class, () -> h.seek(2));
+        h.seek(2); assertEquals(zero,live(b)); h.seek(0);
         h.advance(); assertEquals(one,live(b));
     }
     @Test void stableBlockStopsAtItsExistingGeneration() {
@@ -59,7 +59,7 @@ class LifeHistoryTest {
     @Test void resumingPastStateReplaysCorrectly() {
         Cell b=board(); seed(b,6,6,7,6,8,6); LifeHistory h=new LifeHistory(b,20);
         Set<Point> zero=live(b); h.advance(); h.advance(); h.seek(0); h.advance();
-        assertEquals(next(zero),live(b)); assertEquals(1,h.lastGeneration());
+        assertEquals(next(zero),live(b)); assertEquals(2,h.lastGeneration());
     }
     @Test void intervalMovesClampAndDoNotSimulate() {
         Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b,4);
@@ -113,46 +113,46 @@ class LifeHistoryTest {
         h.seek(3); h.boardEdited(); // Force a new computation, not stored replay.
         for(int i=4;i<=12;i++) { h.advance(); assertEquals(expected.get(i),live(b),"random replay "+i); }
     }
-    @Test void blinkerStopsSavingAtFirstRepeatButKeepsRealTimeAndAnimation() {
-        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b);
+    @Test void blinkerContinuesSavingAfterRepeatAndKeepsRealTimeAndAnimation() {
+        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b, 1000);
         Set<Point> zero=live(b), one=next(zero);
         for(int i=1;i<=1001;i++) {
             h.advance();
             if(i==2 || i==1000 || i==1001) assertEquals(i%2==0?zero:one,live(b));
         }
-        assertEquals(1001,h.currentGeneration()); assertEquals(0,h.firstGeneration());
-        assertEquals(1,h.lastGeneration()); assertEquals(2,h.size());
+        assertEquals(1001,h.currentGeneration()); assertEquals(2,h.firstGeneration());
+        assertEquals(1001,h.lastGeneration()); assertEquals(1000,h.size());
         assertEquals(2,h.detectedAtGeneration()); assertEquals(2,h.cyclePeriod());
     }
     @Test void movingGliderPlusBlinkerIsNotAWholeBoardRepeat() {
         Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7,40,40,41,40,42,40);
-        LifeHistory h=new LifeHistory(b);
+        LifeHistory h=new LifeHistory(b, 1000);
         for(int i=0;i<40;i++)h.advance();
         assertFalse(h.isRepeating()); assertEquals(41,h.size()); assertEquals(40,h.lastGeneration());
     }
     @Test void transientBeforeEmptyBoardIsRetained() {
-        Cell b=board(); seed(b,20,20); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,20,20); LifeHistory h=new LifeHistory(b, 1000);
         h.advance(); assertFalse(h.isRepeating()); h.advance();
         assertTrue(h.isStable()); assertFalse(h.isRepeating()); assertEquals(1,h.currentGeneration());
         assertEquals(1,h.lastGeneration()); assertEquals(2,h.size());
     }
-    @Test void editAtUnsavedLiveTimeStartsNewSegmentWithoutRenumbering() {
-        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b);
+    @Test void editDuringRepetitionPreservesRetainedPast() {
+        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b, 1000);
         for(int i=0;i<100;i++)h.advance(); click(b,12,11); h.boardEdited();
         assertFalse(h.isRepeating()); assertEquals(100,h.currentGeneration());
-        assertEquals(100,h.firstGeneration()); assertEquals(100,h.lastGeneration());
+        assertEquals(0,h.firstGeneration()); assertEquals(100,h.lastGeneration());
         Set<Point> edited=live(b); h.advance(); assertEquals(next(edited),live(b));
         assertEquals(101,h.currentGeneration());
     }
     @Test void seekingAfterDetectionClearsCycleAndAllowsARealBranch() {
-        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,10,10,11,10,12,10); LifeHistory h=new LifeHistory(b, 1000);
         for(int i=0;i<100;i++)h.advance(); h.seek(0);
-        assertFalse(h.isRepeating()); assertEquals(1,h.lastGeneration());
+        assertFalse(h.isRepeating()); assertEquals(100,h.lastGeneration());
         click(b,12,11); h.boardEdited(); Set<Point> edited=live(b);
         assertEquals(0,h.lastGeneration()); h.advance(); assertEquals(next(edited),live(b));
     }
     @Test void resetAfterDetectionReturnsToGenerationZero() {
-        Cell b=board(); LifeHistory h=new LifeHistory(b); h.advance();
+        Cell b=board(); LifeHistory h=new LifeHistory(b, 1000); h.advance();
         assertTrue(h.isStable()); b.clear(); h.reset();
         assertFalse(h.isRepeating()); assertFalse(h.isStable()); assertEquals(0,h.currentGeneration()); assertEquals(1,h.size());
     }
@@ -162,18 +162,18 @@ class LifeHistoryTest {
         assertNotEquals(a,other); assertTrue(a.isAlive(new Point(1,1)));
         assertThrows(IllegalStateException.class, () -> a.markAsAlive(new Point(2,2)));
     }
-    @Test void stableBlockAndBlinkerOnlyFreezeAfterTransientHasDisappeared() {
+    @Test void stableBlockAndBlinkerDetectCycleAfterTransientAndKeepSaving() {
         Cell b=board(); seed(b,10,10,11,10,12,10,40,40,41,40,40,41,41,41,55,55);
-        LifeHistory h=new LifeHistory(b); Set<Point> expected=live(b);
+        LifeHistory h=new LifeHistory(b, 1000); Set<Point> expected=live(b);
         for(int i=1;i<=20;i++) {
             expected=next(expected); h.advance(); assertEquals(expected,live(b));
             if(i<3)assertFalse(h.isRepeating());
         }
         assertEquals(3,h.detectedAtGeneration()); assertEquals(2,h.cyclePeriod());
-        assertEquals(0,h.firstGeneration()); assertEquals(2,h.lastGeneration()); assertEquals(3,h.size());
+        assertEquals(0,h.firstGeneration()); assertEquals(20,h.lastGeneration()); assertEquals(21,h.size());
     }
     @Test void editedBranchMustNotTreatUneditedPastAsCycle() {
-        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b, 1000);
         List<BoardSnapshot> original=new ArrayList<>(); original.add(BoardSnapshot.capture(b));
         for(int i=1;i<=20;i++) { h.advance(); original.add(BoardSnapshot.capture(b)); }
         h.seek(10);
@@ -198,16 +198,16 @@ class LifeHistoryTest {
     }
 
     @Test void editedBranchStillDetectsItsOwnRealCycle() {
-        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b, 1000);
         for(int i=0;i<20;i++) h.advance();
         h.seek(10); b.clear(); seed(b,30,30,31,30,32,30); h.boardEdited();
         h.advance(); assertFalse(h.isRepeating()); assertEquals(11,h.lastGeneration());
         h.advance(); assertTrue(h.isRepeating()); assertEquals(2,h.cyclePeriod());
-        assertEquals(12,h.detectedAtGeneration()); assertEquals(11,h.lastGeneration());
+        assertEquals(12,h.detectedAtGeneration()); assertEquals(12,h.lastGeneration());
     }
 
     @Test void continuousPlaybackPreservesEditsUntilAnotherExplicitEditBranches() {
-        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,6,5,7,6,5,7,6,7,7,7); LifeHistory h=new LifeHistory(b, 1000);
         for(int i=0;i<20;i++) h.advance();
         h.seek(10); seed(b,40,40,41,40,40,41,41,41); h.boardEdited();
         List<BoardSnapshot> edited=new ArrayList<>(); edited.add(BoardSnapshot.capture(b));
@@ -225,14 +225,14 @@ class LifeHistoryTest {
     }
 
     @Test void stableAfterTransientDoesNotCountExtraGenerations() {
-        Cell b=board(); seed(b,20,20); LifeHistory h=new LifeHistory(b);
+        Cell b=board(); seed(b,20,20); LifeHistory h=new LifeHistory(b, 1000);
         h.advance(); assertEquals(1,h.currentGeneration()); assertTrue(live(b).isEmpty());
         for(int i=0;i<100;i++)h.advance();
         assertTrue(h.isStable()); assertEquals(1,h.currentGeneration());
         assertEquals(1,h.lastGeneration()); assertEquals(2,h.size());
     }
     @Test void editingOrSeekingStableBoardAllowsProgressAgain() {
-        Cell b=board(); LifeHistory h=new LifeHistory(b); h.advance(); assertTrue(h.isStable());
+        Cell b=board(); LifeHistory h=new LifeHistory(b, 1000); h.advance(); assertTrue(h.isStable());
         seed(b,10,10,11,10,12,10); h.boardEdited(); assertFalse(h.isStable());
         h.advance(); assertEquals(1,h.currentGeneration()); assertFalse(h.isStable());
         b.clear(); h.boardEdited(); h.advance(); assertTrue(h.isStable());

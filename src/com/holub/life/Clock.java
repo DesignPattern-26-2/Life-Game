@@ -28,6 +28,11 @@ import com.holub.tools.Publisher;
 
 public class Clock
 {	private Timer clock;
+	private final java.util.List<Runnable> stateListeners = new ArrayList<>();
+
+	public boolean isRunning() { return clock != null && clock.isRunning(); }
+	public void addStateListener(Runnable listener) { stateListeners.add(listener); }
+	private void stateChanged() { for (Runnable listener : stateListeners) listener.run(); }
 
 	// The clock can't be an everything-is-static singleton because
 	// it creates a menu, and it can't do that until the menus
@@ -72,6 +77,7 @@ public class Clock
 			clock.setInitialDelay(0);
 			clock.start();
 		}
+		stateChanged();
 	}
 
 	/** Stop the clock

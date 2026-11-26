@@ -42,7 +42,7 @@ class GenerationHistoryTest {
     }
     @Test void invalidCapacityIsRejected() {
         assertThrows(IllegalArgumentException.class, () -> new GenerationHistory<>(1, "state"));
-        assertThrows(IllegalArgumentException.class, () -> new GenerationHistory<>(1001, "state"));
+        assertThrows(IllegalArgumentException.class, () -> new GenerationHistory<>(1_000_001, "state"));
     }
     @Test void resetAtPreservesAbsoluteTimeAfterUnsavedGap() {
         GenerationHistory<String> h = new GenerationHistory<>(3, "a");

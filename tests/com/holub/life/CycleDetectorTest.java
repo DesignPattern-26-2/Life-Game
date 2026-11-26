@@ -23,17 +23,17 @@ class CycleDetectorTest {
         assertEquals(2,d.observe("BB"));
     }
     @Test void cyclesLongerThanRetentionAreDetectedWithoutUnboundedStorage() {
-        LifeHistory h=new LifeHistory(new PeriodicBoard(1009));
+        LifeHistory h=new LifeHistory(new PeriodicBoard(1009), 1000);
         while(!h.isRepeating() && h.currentGeneration()<5000)h.advance();
         assertTrue(h.isRepeating()); assertEquals(1009,h.cyclePeriod());
         int detected=h.currentGeneration(), first=h.firstGeneration(), last=h.lastGeneration();
-        assertEquals(detected-1,last); assertEquals(1000,h.size());
+        assertEquals(detected,last); assertEquals(1000,h.size());
         for(int i=0;i<500;i++)h.advance();
         assertEquals(detected+500,h.currentGeneration());
-        assertEquals(first,h.firstGeneration()); assertEquals(last,h.lastGeneration()); assertEquals(1000,h.size());
+        assertEquals(first+500,h.firstGeneration()); assertEquals(last+500,h.lastGeneration()); assertEquals(1000,h.size());
     }
     @Test void nonRepeatingRunStillEvictsOldestAtFixedCapacity() {
-        LifeHistory h=new LifeHistory(new PeriodicBoard(10000));
+        LifeHistory h=new LifeHistory(new PeriodicBoard(10000), 1000);
         for(int i=0;i<2000;i++)h.advance();
         assertFalse(h.isRepeating()); assertEquals(1000,h.size()); assertEquals(1001,h.firstGeneration());
         assertEquals(2000,h.lastGeneration());

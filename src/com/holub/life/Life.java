@@ -19,7 +19,7 @@ public final class Life extends JFrame
 	}
 
 	private Life()
-	{	super( "Life Game [2026-11-22 · 종합 검증판] "
+	{	super( "Life Game [2026-11-26 · 통계 통합·10만 세대] "
 					+"(c)2003 Allen I. Holub <http://www.holub.com>");
 
 		// Must establish the MenuSite very early in case

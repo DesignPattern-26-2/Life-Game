@@ -10,7 +10,7 @@ class RandomWorkflowAuditTest {
  void randomActionSequencesMatchIndependentOracle(int seed) {
   int w=seed%2==0?8:64;Random random=new Random(20261122L+seed);
   boolean[] initial=new boolean[w*w];for(int i=0;i<initial.length;i++)initial[i]=random.nextDouble()<.15;
-  Cell b=AuditSupport.board(w);AuditSupport.load(b,initial);LifeHistory h=new LifeHistory(b);Oracle o=new Oracle(initial,w);
+  Cell b=AuditSupport.board(w);AuditSupport.load(b,initial);LifeHistory h=new LifeHistory(b, 1000);Oracle o=new Oracle(initial,w);
   for(int action=0;action<400;action++) {
    int kind=random.nextInt(12);
    if(kind<6){h.advance();o.advance();}
@@ -46,9 +46,8 @@ class RandomWorkflowAuditTest {
    boolean[] computed=AuditSupport.next(current,width);
    if(Arrays.equals(current,computed)){stable=true;return;}
    current=computed;generation++;
-   if(period>0)return;
-   for(Map.Entry<Integer,boolean[]> e:states.tailMap(floor,true).descendingMap().entrySet())
-    if(Arrays.equals(e.getValue(),current)){period=generation-e.getKey();detected=generation;return;}
+   if(period==0) for(Map.Entry<Integer,boolean[]> e:states.tailMap(floor,true).descendingMap().entrySet())
+    if(Arrays.equals(e.getValue(),current)){period=generation-e.getKey();detected=generation;break;}
    states.put(generation,current.clone());
   }
  }

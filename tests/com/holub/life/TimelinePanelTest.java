@@ -20,10 +20,10 @@ class TimelinePanelTest {
             b.userClicked(p,new Rectangle(0,0,64,64));
         return b;
     }
-    private LifeHistory history() { return new LifeHistory(board()); }
+    private LifeHistory history() { return new LifeHistory(board(), 1000); }
     @Test void steppingAcrossEditAfterFifteenTicksReplaysStoredBranchWithoutOverwriting() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            Cell b=board(); LifeHistory h=new LifeHistory(b);
+            Cell b=board(); LifeHistory h=new LifeHistory(b, 1000);
             TimelinePanel p=new TimelinePanel(h,()->{},()->{});
             for(int i=0;i<20;i++) h.advance();
             JSlider slider=find(p,JSlider.class,null);
@@ -51,7 +51,7 @@ class TimelinePanelTest {
     }
     @Test void editingGenerationTenImmediatelyTruncatesSliderAndStartsNewEleven() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            Cell b=board(); LifeHistory h=new LifeHistory(b);
+            Cell b=board(); LifeHistory h=new LifeHistory(b, 1000);
             TimelinePanel p=new TimelinePanel(h,()->{},()->{});
             for(int i=0;i<20;i++)h.advance();
             JTextField input=find((JPanel)p.getComponent(3),JTextField.class,null);
@@ -106,30 +106,30 @@ class TimelinePanelTest {
     }
     @Test void fixedCapacityHasNoUserSetting() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            LifeHistory h=history(); TimelinePanel p=new TimelinePanel(h,()->{},()->{});
-            assertEquals(1000,h.capacity()); assertNull(find(p,JButton.class,"한도 적용"));
+            LifeHistory h=new LifeHistory(board()); TimelinePanel p=new TimelinePanel(h,()->{},()->{});
+            assertEquals(100000,h.capacity()); assertNull(find(p,JButton.class,"한도 적용"));
             assertNull(find((JPanel)p.getComponent(3),JSpinner.class,null));
             assertNotNull(find(p,JButton.class,"+1세대"));
         });
     }
-    @Test void liveGenerationStaysActualButInputTargetsLastStoredState() throws Exception {
+    @Test void repeatedGenerationsStayStoredAndInputMatchesCurrent() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
             Cell b=new Neighborhood(8,new Resident());
             for(int x=2;x<=4;x++) b.userClicked(new Point(x,3),new Rectangle(0,0,8,8));
-            LifeHistory h=new LifeHistory(b);
+            LifeHistory h=new LifeHistory(b, 1000);
             AtomicInteger pauses=new AtomicInteger(); TimelinePanel p=new TimelinePanel(h,pauses::incrementAndGet,()->{});
             for(int i=0;i<100;i++)h.advance();
             JSlider slider=find(p,JSlider.class,null);
-            assertEquals(1,slider.getMaximum()); assertEquals(100,h.currentGeneration());
-            assertEquals("1",find((JPanel)p.getComponent(3),JTextField.class,null).getText());
+            assertEquals(100,slider.getMaximum()); assertEquals(100,h.currentGeneration());
+            assertEquals("100",find((JPanel)p.getComponent(3),JTextField.class,null).getText());
             assertTrue(find(p,JLabel.class,null).getText().contains("현재 100세대"));
-            assertEquals(0,pauses.get()); assertTrue(find(p,JButton.class,"최신").isEnabled());
-            find(p,JButton.class,"이동").doClick(); assertEquals(1,h.currentGeneration());
+            assertEquals(0,pauses.get()); assertFalse(find(p,JButton.class,"최신").isEnabled());
+            find(p,JButton.class,"이동").doClick(); assertEquals(100,h.currentGeneration());
         });
     }
     @Test void stableBoardPausesPlaybackAndStepDoesNotIncrement() throws Exception {
         SwingUtilities.invokeAndWait(() -> {
-            Cell b=new Neighborhood(8,new Resident()); LifeHistory h=new LifeHistory(b);
+            Cell b=new Neighborhood(8,new Resident()); LifeHistory h=new LifeHistory(b, 1000);
             AtomicInteger pauses=new AtomicInteger(), plays=new AtomicInteger();
             TimelinePanel p=new TimelinePanel(h,pauses::incrementAndGet,plays::incrementAndGet);
             h.advance(); assertTrue(h.isStable()); assertEquals(1,pauses.get());

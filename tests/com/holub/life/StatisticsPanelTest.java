@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StatisticsPanelTest {
     private final Cell board = AuditSupport.board(8);
-    private final LifeHistory history = new LifeHistory(board);
+    private final LifeHistory history = new LifeHistory(board, 1000);
 
     private void seedBlinker() {
         for (int x = 2; x <= 4; x++) AuditSupport.toggle(board, x, 3);
@@ -29,8 +29,7 @@ class StatisticsPanelTest {
             JPanel map = (JPanel) control(panel, "군집 지도");
             JLabel cell = (JLabel) control(panel, "선택한 셀의 이력");
             TimelinePanel timeline = new TimelinePanel(history, () -> {}, () -> {});
-            JSlider slider = (JSlider) Arrays.stream(timeline.getComponents())
-                    .filter(JSlider.class::isInstance).findFirst().orElseThrow();
+            JSlider slider = ContinuousTimelineTest.named(timeline, JSlider.class, "timeline");
             map.setSize(80, 80);
             int live = render(map).getRGB(25, 35);
             map.dispatchEvent(new MouseEvent(map, MouseEvent.MOUSE_PRESSED, 0, 0, 25, 35, 1, false));
