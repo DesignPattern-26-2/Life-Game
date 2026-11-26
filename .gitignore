@@ -1,0 +1,9 @@
+# IntelliJ 빌드 결과물
+/out/
+
+# IntelliJ 개인 설정
+.idea/
+*.iml
+
+# macOS
+.DS_Store
