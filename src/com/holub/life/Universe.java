@@ -239,7 +239,8 @@ public class Universe extends JPanel
 			}
 		);
 
-		new SimulationMenu( settings, this );
+		// Custom 입력 창도 새 창이므로, 열리기 전에 진행을 멈추게 한다(팀 규칙).
+		new SimulationMenu( settings, this, () -> Clock.instance().stop() );
 	}
 
 	/** 새 게임: 보드 전체가 바뀐다(Clear, 패턴 Apply). 진행을 멈추고 보드를

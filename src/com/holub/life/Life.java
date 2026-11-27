@@ -30,7 +30,8 @@ public final class Life extends JFrame
 		MenuSite.establish( this );		//{=life.java.establish}
 
 		// [shortcut] created before any menu is added, so that every addLine() call is collected as a command
-		ShortcutFeature shortcuts = new ShortcutFeature( this );
+		// The shortcut window pauses the game before it opens (team rule: a new window pauses the game)
+		ShortcutFeature shortcuts = new ShortcutFeature( this, () -> Clock.instance().stop() );
 
 		setDefaultCloseOperation	( EXIT_ON_CLOSE 		);
 		getContentPane().setLayout	( new BorderLayout()	);

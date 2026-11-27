@@ -28,21 +28,32 @@ public final class ShortcutFeature {
 	private final JFrame frame;
 	private final File keymapFile;
 	private final File macroFile;
+	private final Runnable pauseGame;
 
 	private final CommandRegistry registry = new CommandRegistry();
 	private final UserMacros macros = new UserMacros(registry);
 	private Keymap keymap;
 
-	/** 설정 파일을 사용자 홈 폴더의 ".life-game" 폴더에 둔다. */
-	public ShortcutFeature(JFrame frame) {
-		this(frame, new File(System.getProperty("user.home"), ".life-game"));
+	/**
+	 * 설정 파일을 사용자 홈 폴더의 ".life-game" 폴더에 둔다.
+	 *
+	 * @param pauseGame 단축키 창을 열기 전에 부를 동작. 게임의 진행을 멈춘다.
+	 */
+	public ShortcutFeature(JFrame frame, Runnable pauseGame) {
+		this(frame, new File(System.getProperty("user.home"), ".life-game"), pauseGame);
 	}
 
 	/**
 	 * @param configFolder keymap.properties와 macros.properties를 둘 폴더
+	 * @param pauseGame    단축키 창을 열기 전에 부를 동작. 이 패키지는 시계를 모르므로
+	 *                     멈추는 방법은 만드는 쪽(Life)이 넘겨준다.
 	 */
-	public ShortcutFeature(JFrame frame, File configFolder) {
+	public ShortcutFeature(JFrame frame, File configFolder, Runnable pauseGame) {
+		if (pauseGame == null)
+			throw new IllegalArgumentException("pauseGame must not be null");
+
 		this.frame = frame;
+		this.pauseGame = pauseGame;
 		this.keymapFile = new File(configFolder, "keymap.properties");
 		this.macroFile = new File(configFolder, "macros.properties");
 
@@ -65,6 +76,7 @@ public final class ShortcutFeature {
 		// 창은 한 번만 만들어 다시 쓴다(열 때마다 만들면 표의 관찰자가 계속 쌓인다).
 		final ShortcutDialog dialog = new ShortcutDialog(frame, registry, keymap, macros);
 		MenuSite.addLine(this, "Shortcuts", "Edit Shortcuts...", e -> {
+			pauseGame.run(); // 팀 규칙: 새 창이 열리면 진행을 멈춘다
 			dialog.setLocationRelativeTo(frame);
 			dialog.setVisible(true);
 		});

@@ -44,10 +44,24 @@ public class SimulationMenu
 
 	private final SimulationSettings settings;
 	private final Component          dialogParent;
+	private final Runnable           pauseGame;
 
 	public SimulationMenu( SimulationSettings settings, Component dialogParent )
-	{	this.settings     = settings;
+	{	this( settings, dialogParent, () -> { } );
+	}
+
+	/** @param pauseGame Custom 입력 창을 띄우기 전에 부를 동작. 게임의 진행을
+	 *                   멈춘다(팀 규칙: 새 창이 열리면 진행을 멈춘다). 이 클래스는
+	 *                   시계를 모르므로 멈추는 방법은 만드는 쪽이 넘겨준다.
+	 */
+	public SimulationMenu( SimulationSettings settings, Component dialogParent,
+						   Runnable pauseGame )
+	{	if( pauseGame == null )
+			throw new IllegalArgumentException( "pauseGame must not be null" );
+
+		this.settings     = settings;
 		this.dialogParent = dialogParent;
+		this.pauseGame    = pauseGame;
 		createMenus();
 
 		showCheckMarks();
@@ -161,6 +175,8 @@ public class SimulationMenu
 	 */
 	private void askForCustomRule()
 	{
+		pauseGame.run();	// 입력 창이 떠 있는 동안 게임이 뒤에서 돌지 않게 한다
+
 		String initial = settings.rule().notation();
 		while( true )
 		{	String input = JOptionPane.showInputDialog(

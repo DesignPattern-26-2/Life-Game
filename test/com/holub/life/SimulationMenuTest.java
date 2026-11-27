@@ -4,6 +4,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.awt.GraphicsEnvironment;
+import java.awt.Window;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.SwingUtilities;
@@ -63,6 +66,10 @@ class SimulationMenuTest
 		private SimulationSettings settings;
 		private SimulationMenu     menu;
 
+		// 메뉴가 "진행을 멈춰 달라"고 요청한 횟수와, 그 순간 창이 이미 떠 있었는지
+		private final AtomicInteger pauseRequests = new AtomicInteger();
+		private volatile boolean    dialogWasOpenWhenPaused;
+
 		@BeforeEach
 		void setUp() throws Exception
 		{	assumeFalse( GraphicsEnvironment.isHeadless(), "화면이 없는 환경" );
@@ -73,8 +80,30 @@ class SimulationMenuTest
 				catch( AssertionError alreadyEstablished ) { /* 다른 테스트가 이미 만듦 */ }
 
 				settings = new SimulationSettings();
-				menu     = new SimulationMenu( settings, null );
+				menu     = new SimulationMenu( settings, null, () ->
+				{	dialogWasOpenWhenPaused = showingDialog() != null;
+					pauseRequests.incrementAndGet();
+				});
 			});
+		}
+
+		/** 지금 화면에 떠 있는 대화 상자. 없으면 null. */
+		private Window showingDialog()
+		{	for( Window window : Window.getWindows() )
+				if( window instanceof JDialog && window.isShowing() )
+					return window;
+			return null;
+		}
+
+		private Window waitForDialog() throws Exception
+		{	for( int waited = 0; waited < 5000; waited += 50 )
+			{	Window[] found = new Window[1];
+				SwingUtilities.invokeAndWait( () -> found[0] = showingDialog() );
+				if( found[0] != null )
+					return found[0];
+				Thread.sleep( 50 );
+			}
+			return fail( "Custom 입력 창이 뜨지 않았다" );
 		}
 
 		@AfterEach
@@ -148,6 +177,39 @@ class SimulationMenuTest
 			JMenuItem maze = MenuSite.getMyMenuItem( menu, "Rule", "Maze (B3/S12345)" );
 			assertEquals( "Maze (B3/S12345)", maze.getName() );
 			assertEquals( "Maze (B3/S12345)", maze.getText() );
+		}
+
+		@Test
+		@DisplayName("[팀 규칙] Custom...을 누르면 입력 창이 뜨기 전에 진행을 멈춰 달라고 요청한다")
+		void customDialogPausesTheGameFirst() throws Exception
+		{	// 목적: 새 창이 열리면 진행을 멈춘다는 규칙을 Custom 입력 창도 지키는지 본다.
+			//       창이 떠 있는 동안 게임이 뒤에서 돌지 않으려면 요청이 창보다 먼저여야 한다.
+			// 입력 창은 닫힐 때까지 doClick()을 붙잡으므로 나중에 실행되게 넣어 둔다.
+			SwingUtilities.invokeLater( () ->
+				MenuSite.getMyMenuItem( menu, "Rule", "Custom..." ).doClick() );
+
+			Window dialog = waitForDialog();
+			try
+			{	assertEquals( 1, pauseRequests.get(), "입력 창이 떠 있는데 멈춤 요청이 없었다" );
+				assertFalse( dialogWasOpenWhenPaused, "멈춤 요청이 창이 뜬 뒤에 왔다" );
+			}
+			finally
+			{	SwingUtilities.invokeAndWait( dialog::dispose );	// 입력하지 않고 닫는다(취소와 같다)
+			}
+
+			SwingUtilities.invokeAndWait( () -> {} );
+			assertEquals( LifeLikeRule.CONWAY, settings.rule(), "입력하지 않았으므로 규칙은 그대로다" );
+		}
+
+		@Test
+		@DisplayName("프리셋 규칙을 고를 때는 창이 뜨지 않으므로 멈춤 요청도 없다")
+		void presetDoesNotPause() throws Exception
+		{	// 목적: 멈춤 요청은 창을 여는 Custom...에만 걸려 있다. 창이 뜨지 않는 프리셋
+			//       선택은 "새 창이 열리면 멈춘다"는 규칙의 대상이 아니다.
+			SwingUtilities.invokeAndWait( () ->
+				MenuSite.getMyMenuItem( menu, "Rule", "HighLife (B36/S23)" ).doClick() );
+
+			assertEquals( 0, pauseRequests.get() );
 		}
 	}
 }
