@@ -78,7 +78,10 @@ public class Universe extends JPanel
 							)
 						);
 
-		history = new LifeHistory(outermostCell);
+		// 다음 세대 계산은 경계 모드가 맡는다. 타임라인은 규칙·경계 클래스를 모르고
+		// "다음 상태를 계산하라"는 요청만 한다.
+		history = new LifeHistory( outermostCell,
+						() -> settings.boundary().figureNextState( outermostCell ) );
 		history.addChangeListener(this::repaint);
 
 		final Dimension PREFERRED_SIZE =

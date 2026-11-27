@@ -3,6 +3,7 @@ package com.holub.life;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 
 /** Board evolution and bounded snapshots. Calls are serialized on Swing's EDT.
  * Repeated generations remain navigable and share the same statistics timeline.
@@ -19,12 +20,26 @@ public final class LifeHistory {
     private boolean stable;
     private int cyclePeriod;
     private int detectedAt = -1;
+    // Figures the board's next state and says whether any cell will change.
+    // Injected so that the timeline does not have to know the boundary rules.
+    private final BooleanSupplier nextState;
 
     public LifeHistory(Cell board) { this(board, DEFAULT_CAPACITY); }
 
+    /** @param nextState figures the next state of the board (without committing it) and
+     *  returns true if any cell will change; it decides what lies beyond the edge of the board. */
+    public LifeHistory(Cell board, BooleanSupplier nextState) { this(board, DEFAULT_CAPACITY, nextState); }
+
     // Smaller capacities are useful to test eviction and long-cycle detection.
+    // Beyond the edge every neighbor is dead, as in the original program.
     LifeHistory(Cell board, int capacity) {
+        this(board, capacity, () -> board.figureNextState(Cell.DUMMY, Cell.DUMMY, Cell.DUMMY, Cell.DUMMY,
+                Cell.DUMMY, Cell.DUMMY, Cell.DUMMY, Cell.DUMMY));
+    }
+
+    private LifeHistory(Cell board, int capacity, BooleanSupplier nextState) {
         this.board = board;
+        this.nextState = nextState;
         BoardSnapshot initial = BoardSnapshot.capture(board);
         history = new GenerationHistory<>(capacity, GenerationStatistics.baseline(initial, 0));
         detector.reset(initial);
@@ -44,8 +59,7 @@ public final class LifeHistory {
             return;
         }
         int next = Math.addExact(generation, 1);
-        if (!board.figureNextState(Cell.DUMMY, Cell.DUMMY, Cell.DUMMY, Cell.DUMMY,
-                Cell.DUMMY, Cell.DUMMY, Cell.DUMMY, Cell.DUMMY)) {
+        if (!nextState.getAsBoolean()) {
             stable = true;
             cyclePeriod = 0;
             detectedAt = -1;
