@@ -200,6 +200,12 @@ public class Universe extends JPanel
 			}
 		);
 
+		// Keep editor/storage details outside the original simulation mediator.
+		// 패턴 Apply는 보드 전체를 바꾸는 "새 게임"이다. 패턴 쪽은 타임라인을
+		// 모르므로, 보드를 바꾸는 일을 newGame()에 맡기게 한다.
+		// 보드를 저장하고 불러오는 일이라 Store 아래, Exit 위에 "Patterns..."를 둔다.
+		PatternLibraryMenu.install(this, outermostCell, this::newGame);
+
 		MenuSite.addLine
 		(	this, "Grid", "Exit",
 			new ActionListener()
@@ -208,11 +214,6 @@ public class Universe extends JPanel
 		        }
 			}
 		);
-
-        // Keep editor/storage details outside the original simulation mediator.
-        // 패턴 Apply는 보드 전체를 바꾸는 "새 게임"이다. 패턴 쪽은 타임라인을
-        // 모르므로, 보드를 바꾸는 일을 newGame()에 맡기게 한다.
-        PatternLibraryMenu.installWhenReady(this, outermostCell, this::newGame);
 
 		Clock.instance().addClockListener(history::advance);
 

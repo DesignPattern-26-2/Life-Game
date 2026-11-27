@@ -305,7 +305,7 @@ source가 `JMenuItem`이 아니면 `ClassCastException`이 난다.
 |---|---|---|
 | 6 | `import com.holub.life.shortcut.ShortcutFeature;` | 아래 두 곳에서 쓴다 |
 | 30–31 | `MenuSite.establish()` 직후에 `new ShortcutFeature(this)` | 메뉴 수집은 `Universe.instance()`가 메뉴를 등록하기 전에 시작해야 한다 |
-| 37–38 | `Universe`를 추가한 뒤에 `shortcuts.install()` | 키맵을 불러오고 키 바인딩을 건다. Shortcuts 메뉴가 Grid, Go 오른쪽에 오려면 그 뒤에 추가해야 한다 |
+| 37–38 | `Universe`를 추가한 뒤에 `shortcuts.install()` | 키맵을 불러오고 키 바인딩을 건다. `Shortcuts...` 항목이 Edit 메뉴의 맨 아래에 오려면 Edit 메뉴가 만들어진 뒤에 추가해야 한다(2026-11-28 전에는 메뉴바의 Shortcuts 메뉴였다) |
 
 ### 수정하지 않은 것
 
@@ -366,7 +366,7 @@ Life 창을 실제로 띄우고 프로그램으로 조작해 확인했다. 설�
 
 ### 6.3 손으로 확인한 것
 
-2026-11-20에 Life를 직접 실행해 `Shortcuts > Edit Shortcuts...`에서 키를 지정하고 눌러 보았고, 정상 동작했다.
+2026-11-20에 Life를 직접 실행해 `Shortcuts > Edit Shortcuts...`(지금의 `Edit > Shortcuts...`)에서 키를 지정하고 눌러 보았고, 정상 동작했다.
 눌러 본 키와 명령의 목록은 남기지 않았다.
 
 ## 7. 다른 팀원 코드와의 관계

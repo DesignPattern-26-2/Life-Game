@@ -16,14 +16,18 @@ import com.holub.ui.MenuSite;
  *
  * 두 단계로 나뉜다.
  *   1. 생성자  : 메뉴 수집을 시작한다. 다른 메뉴가 등록되기 "전"에 불러야 한다.
- *   2. install : 저장된 매크로와 키맵을 불러오고, 키 바인딩을 걸고, "Shortcuts" 메뉴를 추가한다.
- *                다른 메뉴가 등록된 "뒤"에 부른다(그래야 Shortcuts 메뉴가 Grid, Go 오른쪽에 온다).
+ *   2. install : 저장된 매크로와 키맵을 불러오고, 키 바인딩을 걸고, Edit 메뉴에 "Shortcuts..." 항목을 추가한다.
+ *                다른 메뉴가 등록된 "뒤"에 부른다(그래야 이 항목이 Edit 메뉴의 맨 아래에 온다).
  *
  * 레지스트리, 키맵 같은 부품은 Singleton이 아니라 여기서 new로 만들어 필요한 곳에 넘겨준다.
  */
 public final class ShortcutFeature {
 
 	private static final Logger log = Logger.getLogger("com.holub.life.shortcut");
+
+	/** 단축키 창을 여는 메뉴 항목의 위치. 명령 id는 "Edit/Shortcuts..."가 된다. */
+	static final String MENU = "Edit";
+	static final String ITEM = "Shortcuts...";
 
 	private final JFrame frame;
 	private final File keymapFile;
@@ -72,10 +76,12 @@ public final class ShortcutFeature {
 		keymap.addObserver(this::saveKeymap);
 		macros.addObserver(this::saveMacros);
 
-		// "Shortcuts" 메뉴. 이 항목도 addLine()을 거치므로 명령으로 수집되어 단축키를 받을 수 있다.
+		// Edit 메뉴 맨 아래의 "Shortcuts...". 항목이 하나뿐인 메뉴를 따로 두지 않으려고 Edit에 넣었다.
+		// 이 항목도 addLine()을 거치므로 명령으로 수집되어 단축키를 받을 수 있다.
 		// 창은 한 번만 만들어 다시 쓴다(열 때마다 만들면 표의 관찰자가 계속 쌓인다).
 		final ShortcutDialog dialog = new ShortcutDialog(frame, registry, keymap, macros);
-		MenuSite.addLine(this, "Shortcuts", "Edit Shortcuts...", e -> {
+		MenuSite.addLine(this, MENU, "-", null);
+		MenuSite.addLine(this, MENU, ITEM, e -> {
 			pauseGame.run(); // 팀 규칙: 새 창이 열리면 진행을 멈춘다
 			dialog.setLocationRelativeTo(frame);
 			dialog.setVisible(true);
