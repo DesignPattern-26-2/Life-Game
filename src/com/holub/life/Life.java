@@ -47,6 +47,11 @@ public final class Life extends JFrame
 		LifeHistory history = Universe.instance().history();
 		getContentPane().add(new TimelinePanel(history), BorderLayout.SOUTH);
 		getContentPane().add(new StatisticsPanel(history), BorderLayout.EAST);
+
+		// 세대가 바뀌면 보드와 두 패널을 한 번에 다시 그린다. 각자 따로 그리게 두면
+		// 부품마다 화면에 따로 나가서 Go > Medium, Fast가 원본보다 느려진다.
+		history.addChangeListener( () -> getContentPane().repaint() );
+
 		pack();
 		setMinimumSize(getSize());
 		setVisible( true );
