@@ -1,4 +1,5 @@
-# Compiles src/ and test/, then runs the JUnit 5 tests headless (no window).
+# Compiles src/ and both test folders (test/ and tests/), then runs the JUnit 5 tests headless (no window).
+# There are two test folders because feature branches used either name and the merge kept both.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 # Uses the JDK in JAVA_HOME if it is set, otherwise java/javac from PATH.
 # (Comments are ASCII on purpose: Windows PowerShell 5.1 misreads UTF-8 files without a BOM.)
@@ -28,7 +29,8 @@ if (Test-Path out) { Remove-Item -Recurse -Force out }
 New-Item -ItemType Directory -Force out\main, out\test | Out-Null
 
 $mainSources = Get-ChildItem src  -Recurse -Filter *.java | ForEach-Object { $_.FullName }
-$testSources = Get-ChildItem test -Recurse -Filter *.java | ForEach-Object { $_.FullName }
+$testDirs    = @('test', 'tests') | Where-Object { Test-Path $_ }
+$testSources = Get-ChildItem $testDirs -Recurse -Filter *.java | ForEach-Object { $_.FullName }
 
 & $javac -encoding UTF-8 -nowarn -d out\main $mainSources
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -36,7 +38,8 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $javac -encoding UTF-8 -d out\test -cp "out\main;$junitJar" $testSources
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-& $java '-Djava.awt.headless=true' -jar $junitJar execute `
+# -ea: the tests under tests/ were written to run with assertions on (see test.sh / test.bat in the root).
+& $java '-ea' '-Djava.awt.headless=true' -jar $junitJar execute `
 	--class-path 'out\main;out\test' `
 	--scan-class-path out\test `
 	--details=tree `

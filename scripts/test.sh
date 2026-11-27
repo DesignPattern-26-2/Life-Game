@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# 소스(src)와 테스트(test)를 컴파일하고 JUnit 5 테스트를 창 없이(headless) 실행한다.
+# 소스(src)와 테스트(test, tests)를 컴파일하고 JUnit 5 테스트를 창 없이(headless) 실행한다.
+# 테스트 폴더가 둘인 이유: 기능 브랜치마다 test/ 또는 tests/를 썼고, 통합하면서 둘 다 그대로 두었다.
 # 사용법: bash scripts/test.sh
 # JDK는 JAVA_HOME이 있으면 그것을, 없으면 PATH의 java/javac를 쓴다.
 set -euo pipefail
@@ -33,12 +34,18 @@ fi
 rm -rf out
 mkdir -p out/main out/test
 find src  -name '*.java' > out/main-sources.txt
-find test -name '*.java' > out/test-sources.txt
+: > out/test-sources.txt
+for dir in test tests; do
+	if [ -d "$dir" ]; then
+		find "$dir" -name '*.java' >> out/test-sources.txt
+	fi
+done
 
 "$JAVAC" -encoding UTF-8 -nowarn -d out/main @out/main-sources.txt
 "$JAVAC" -encoding UTF-8 -d out/test -cp "out/main${SEP}${JUNIT_JAR}" @out/test-sources.txt
 
-"$JAVA" -Djava.awt.headless=true -jar "$JUNIT_JAR" execute \
+# -ea: tests/ 쪽 테스트가 원래 쓰던 옵션(루트의 test.sh, test.bat). assert 문도 검사한다.
+"$JAVA" -ea -Djava.awt.headless=true -jar "$JUNIT_JAR" execute \
 	--class-path "out/main${SEP}out/test" \
 	--scan-class-path out/test \
 	--details=tree \
