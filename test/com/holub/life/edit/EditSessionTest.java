@@ -188,6 +188,170 @@ public class EditSessionTest
 	}
 
 	// ---------------------------------------------------------------
+	// Undo 와 Redo
+	// ---------------------------------------------------------------
+
+	/** 목적: 가장 기본적인 되돌리기와 다시 실행. 되돌리기도 편집이므로
+	 *  진행을 멈추게 하고 끝나면 알리는지도 함께 확인한다. */
+	@Test
+	public void undoRevertsTheLastEditAndRedoRepeatsIt()
+	{	edits.run( () -> board.setAlive( 3, 3, true ) );
+		assertEquals( 1, pauses );
+		assertEquals( 1, reports );
+
+		assertTrue( edits.undo() );
+		assertEquals( cells(), board.liveCells() );
+		assertEquals( 2, pauses,  "되돌리기도 진행을 멈춘다" );
+		assertEquals( 2, reports, "되돌리기도 편집이 끝났다고 알린다" );
+
+		assertTrue( edits.redo() );
+		assertEquals( cells(3,3), board.liveCells() );
+		assertEquals( 3, pauses );
+		assertEquals( 3, reports );
+	}
+
+	/** 목적: 드래그 한 번(누름부터 놓음까지)이 되돌리기의 한 단위인지 확인.
+	 *  칸마다 한 단위면 5칸을 지우려고 Undo 를 5번 눌러야 한다. */
+	@Test
+	public void aPenStrokeIsUndoneAsAWhole()
+	{	EditToolbox tools = new EditToolbox( BrushTool.pen(board) );
+		edits.begin();
+		tools.pressed( 10, 20 );
+		for( int column = 11; column <= 14; ++column )
+			tools.dragged( column, 20 );
+		tools.released( 14, 20 );
+		edits.end();
+
+		assertTrue( edits.undo() );
+
+		assertEquals( cells(), board.liveCells(), "Undo 한 번에 5칸이 모두 사라진다" );
+		assertFalse( edits.canUndo() );
+	}
+
+	/** 목적: 셀을 바꾸지 않은 편집(영역 선택, 빈 칸에서의 지우개 등)은
+	 *  되돌리기 목록에 올라가지 않는지 확인. 올라가면 Undo 를 눌러도
+	 *  아무 일도 일어나지 않는 것처럼 보이는 단계가 생긴다. */
+	@Test
+	public void anEditThatChangesNoCellIsNotAddedToTheUndoList()
+	{	edits.begin();
+		edits.end();
+		assertFalse( edits.canUndo() );
+
+		edits.run( () -> board.setAlive( 3, 3, true ) );
+		edits.run( () -> { } );						// 셀을 바꾸지 않은 편집
+
+		assertTrue( edits.undo(), "Undo 한 번이 바로 앞의 실제 편집을 되돌린다" );
+		assertEquals( cells(), board.liveCells() );
+		assertFalse( edits.canUndo() );
+	}
+
+	/** 목적: 여러 편집을 최근 것부터 차례로 되돌리는지 확인. */
+	@Test
+	public void editsAreUndoneInReverseOrder()
+	{	edits.run( () -> board.setAlive( 1, 1, true ) );
+		edits.run( () -> board.setAlive( 2, 2, true ) );
+
+		edits.undo();
+		assertEquals( cells(1,1), board.liveCells() );
+
+		edits.undo();
+		assertEquals( cells(), board.liveCells() );
+		assertFalse( edits.undo(), "더 되돌릴 편집이 없다" );
+	}
+
+	/** 목적: 지우는 편집(지우개, Cut, Delete)을 되돌리면 지워진 칸이
+	 *  돌아오는지 확인. */
+	@Test
+	public void undoBringsBackCellsThatAnEditErased()
+	{	board.setAlive( 5, 5, true );
+		board.setAlive( 6, 5, true );
+
+		edits.run( () -> board.setAlive( 5, 5, false ) );
+		assertEquals( cells(6,5), board.liveCells() );
+
+		edits.undo();
+		assertEquals( cells(5,5, 6,5), board.liveCells() );
+	}
+
+	/** 목적: 되돌린 뒤 새 편집을 하면 되돌렸던 편집은 다시 실행할 수 없는지 확인
+	 *  (일반적인 Undo/Redo 의 규칙). */
+	@Test
+	public void aNewEditDiscardsWhatCouldBeRedone()
+	{	edits.run( () -> board.setAlive( 1, 1, true ) );
+		edits.undo();
+		assertTrue( edits.canRedo() );
+
+		edits.run( () -> board.setAlive( 2, 2, true ) );
+
+		assertFalse( edits.canRedo() );
+		assertFalse( edits.redo() );
+		assertEquals( cells(2,2), board.liveCells() );
+	}
+
+	/** 목적: 되돌릴 편집이 없을 때 Undo 가 아무 일도 하지 않는지 확인.
+	 *  실행 중인 게임에서는 목록이 항상 비어 있는데, 그때 Undo 를 눌렀다고
+	 *  게임이 멈추면 안 된다. */
+	@Test
+	public void undoAndRedoWithNothingToDoLeaveEverythingAlone()
+	{	assertFalse( edits.undo() );
+		assertFalse( edits.redo() );
+
+		assertEquals( 0, pauses );
+		assertEquals( 0, reports );
+	}
+
+	/** 목적: 보드가 편집이 아닌 이유로 바뀌면(세대 진행, 타임라인 이동,
+	 *  새 게임) 그 전의 편집을 되돌릴 수 없게 되는지 확인. */
+	@Test
+	public void afterTheBoardIsReplacedNothingCanBeUndoneOrRedone()
+	{	edits.run( () -> board.setAlive( 1, 1, true ) );
+		edits.run( () -> board.setAlive( 2, 2, true ) );
+		edits.undo();
+		assertTrue( edits.canUndo() );
+		assertTrue( edits.canRedo() );
+
+		edits.boardReplaced();
+
+		assertFalse( edits.canUndo() );
+		assertFalse( edits.canRedo() );
+		assertFalse( edits.undo() );
+		assertEquals( cells(1,1), board.liveCells(), "보드는 그대로다" );
+	}
+
+	/** 목적: 편집 도중에 보드가 교체되면, 교체 전의 변화가 되돌리기 단위에
+	 *  섞이지 않는지 확인. 섞이면 Undo 가 이전 게임의 칸을 되살린다. */
+	@Test
+	public void anEditInterruptedByAReplacementKeepsOnlyWhatFollows()
+	{	edits.begin();
+		board.setAlive( 1, 1, true );			// 교체 전에 그린 칸
+
+		board.setAlive( 1, 1, false );			// 새 게임이 보드를 비웠다
+		edits.boardReplaced();
+
+		board.setAlive( 9, 9, true );			// 같은 드래그의 나머지
+		edits.end();
+
+		edits.undo();
+		assertEquals( cells(), board.liveCells(), "교체 뒤에 그린 칸만 되돌려진다" );
+	}
+
+	/** 목적: 마우스를 누른 채(편집 진행 중) Undo 가 들어와도 진행 중인
+	 *  편집과 뒤섞이지 않는지 확인. */
+	@Test
+	public void undoIsIgnoredWhileAnEditIsInProgress()
+	{	edits.run( () -> board.setAlive( 1, 1, true ) );
+
+		edits.begin();
+		board.setAlive( 2, 2, true );
+		assertFalse( edits.undo() );
+		edits.end();
+
+		assertEquals( cells(1,1, 2,2), board.liveCells() );
+		assertTrue( edits.undo() );
+		assertEquals( cells(1,1), board.liveCells() );
+	}
+
+	// ---------------------------------------------------------------
 	// 잘못된 사용
 	// ---------------------------------------------------------------
 
