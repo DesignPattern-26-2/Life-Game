@@ -14,6 +14,8 @@ import com.holub.life.edit.EditTool;
 import com.holub.life.edit.EditToolbox;
 import com.holub.life.edit.SelectTool;
 import com.holub.life.edit.ToggleTool;
+import com.holub.life.patterns.BlinkerPattern;
+import com.holub.life.patterns.PlacePresetCommand;
 
 /***
  * 기능 사이의 연결 테스트.
@@ -95,6 +97,14 @@ class FeatureConnectionTest
 
 		void menuDelete() { edits.run( clipboard::deleteSelection ); }
 		void menuCut()    { edits.run( clipboard::cut ); }
+
+		// ----- Universe.newGame()과 같은 순서: Clear와 패턴 Apply가 지난다 -----
+
+		void newGame( Runnable change )
+		{	pauses++;
+			change.run();
+			history.reset();
+		}
 
 		// ----- 준비용 -----
 
@@ -245,6 +255,64 @@ class FeatureConnectionTest
 
 		assertEquals( 5, w.history.currentGeneration() );
 		assertEquals( 5, w.history.lastGeneration() );
+		assertTrue( w.timelineMatchesBoard() );
+	}
+
+	// ---------------------------------------------------------------
+	// 패턴 보관, Clear → 타임라인 (새 게임)
+	// ---------------------------------------------------------------
+
+	/** 목적: 패턴 Apply가 타임라인에 "새 게임"으로 전해지는지 확인.
+	 *  통합 직후에는 패턴을 놓아도 타임라인이 몰라서, 세대 번호와 기록이
+	 *  이전 보드의 것 그대로였다. */
+	@Test
+	@DisplayName("[3] 패턴을 Apply하면 타임라인이 그 패턴을 0세대로 새로 시작한다")
+	void applyingAPatternStartsANewGame()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		int paused = w.pauses;
+
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+
+		assertEquals( 3, w.live(), "글라이더는 지워지고 블링커 3칸만 있다" );
+		assertEquals( 0, w.history.currentGeneration() );
+		assertEquals( 0, w.history.firstGeneration() );
+		assertEquals( 0, w.history.lastGeneration(), "이전 게임의 12세대는 남지 않는다" );
+		assertTrue( w.timelineMatchesBoard() );
+		assertEquals( paused + 1, w.pauses, "새 게임을 시작하면 진행을 멈춘다" );
+	}
+
+	/** 목적: Apply한 패턴에서 타임라인이 정상적으로 이어지는지 확인
+	 *  (새 0세대가 기준이 되어 1세대가 계산되고 되돌아갈 수 있다). */
+	@Test
+	@DisplayName("[3] Apply한 패턴에서 세대를 진행하고 0세대로 되돌아갈 수 있다")
+	void theTimelineContinuesFromAnAppliedPattern()
+	{	Wiring w = new Wiring();
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+		java.util.Set<java.awt.Point> placed = w.board.liveCells();
+
+		w.advance( 1 );
+		assertEquals( 1, w.history.currentGeneration() );
+		assertNotEquals( placed, w.board.liveCells(), "블링커가 방향을 바꿨다" );
+
+		w.history.seek( 0 );
+		assertEquals( placed, w.board.liveCells() );
+	}
+
+	/** 목적: Clear도 같은 "새 게임" 경로로 0세대부터 다시 시작하는지 확인(타임라인 규약). */
+	@Test
+	@DisplayName("[3] Clear는 빈 보드를 0세대로 새로 시작한다")
+	void clearStartsANewGame()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+
+		w.newGame( w.cells::clear );
+
+		assertEquals( 0, w.live() );
+		assertEquals( 0, w.history.currentGeneration() );
+		assertEquals( 0, w.history.lastGeneration() );
 		assertTrue( w.timelineMatchesBoard() );
 	}
 

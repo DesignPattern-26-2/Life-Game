@@ -159,10 +159,7 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Grid", "Clear",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	Clock.instance().stop();
-					outermostCell.clear();
-					history.reset();
-					repaint();
+				{	newGame( outermostCell::clear );
 				}
 			}
 		);
@@ -195,7 +192,9 @@ public class Universe extends JPanel
 		);
 
         // Keep editor/storage details outside the original simulation mediator.
-        PatternLibraryMenu.installWhenReady(this, outermostCell);
+        // 패턴 Apply는 보드 전체를 바꾸는 "새 게임"이다. 패턴 쪽은 타임라인을
+        // 모르므로, 보드를 바꾸는 일을 newGame()에 맡기게 한다.
+        PatternLibraryMenu.installWhenReady(this, outermostCell, this::newGame);
 
 		Clock.instance().addClockListener(history::advance);
 
@@ -222,6 +221,21 @@ public class Universe extends JPanel
 		);
 
 		new SimulationMenu( settings, this );
+	}
+
+	/** 새 게임: 보드 전체가 바뀐다(Clear, 패턴 Apply). 진행을 멈추고 보드를
+	 *  바꾼 뒤, 타임라인을 새 0세대부터 다시 시작한다. 현재 세대의 편집으로
+	 *  기록되는 마우스 도구나 Edit 메뉴(위의 edits)와는 다른 경로다.
+	 *  Load는 파일을 끝까지 읽는 데 성공한 뒤에만 보드를 바꾸므로
+	 *  doLoad()가 같은 일을 직접 한다.
+	 *
+	 *  @param change 보드를 새 내용으로 바꾸는 일
+	 */
+	private void newGame( Runnable change )
+	{	Clock.instance().stop();
+		change.run();
+		history.reset();
+		repaint();
 	}
 
 	private static final boolean KEEP_RUNNING = false, PAUSE_GAME = true;
