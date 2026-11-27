@@ -13,8 +13,8 @@
 2. 키 입력을 한 곳에서 받아 명령을 실행한다.
 3. 화면에서 키를 지정/해제하고, 명령 여러 개를 묶은 매크로를 만들고, 둘 다 파일에 저장한다.
 
-기본 단축키는 두지 않았다. 처음 실행하면 아무 키도 지정되어 있지 않고,
-`Shortcuts > Edit Shortcuts...` 창에서 직접 지정한다. (구조만 제공하기로 한 결정. 4.15 참고)
+처음 실행하면(키맵 파일이 없으면) 기본 단축키 33개가 지정되어 있고,
+`Edit > Shortcuts...` 창에서 바꿀 수 있다. (4.15 참고. 2026-11-28 전에는 기본 단축키가 없었다)
 
 ### 동작 흐름
 
@@ -271,11 +271,50 @@ source가 `JMenuItem`이 아니면 `ClassCastException`이 난다.
 `매크로 이름 = 단계 id들`이고 단계 id는 줄바꿈 문자로 구분한다(파일에는 `\n`으로 적힌다).
 쉼표나 `|`는 메뉴 이름에 들어갈 수 있지만 줄바꿈은 들어갈 수 없어서 구분자로 골랐다.
 
-### 4.15 기본 단축키 없음
+### 4.15 기본 단축키
 
-기본 키를 정하지 않기로 했다(작업 중 결정). 키맵 파일이 없으면 빈 키맵으로 시작한다.
-"파일이 없으면 기본값"이라는 구조는 남아 있다. `ShortcutFeature.defaultKeymap()`이 지금은 빈 키맵을 돌려주고,
-기본 키를 정하고 싶으면 그 메서드에서 `bind()`를 부르면 된다.
+처음에는 기본 키를 정하지 않고 빈 키맵으로 시작했다(구조만 제공). 2026-11-28에 기본 단축키를 넣기로 바꿨다.
+"파일이 없으면 기본값"이라는 구조는 그대로이고, 그 기본값이 빈 키맵에서 `DefaultKeymap.create()`로 바뀌었다.
+
+| 메뉴 | 명령 | 키 | 고른 이유 |
+|---|---|---|---|
+| Grid | Clear | Ctrl+N | New |
+| Grid | Load | Ctrl+O | Open |
+| Grid | Store | Ctrl+S | Save |
+| Grid | Patterns... | Ctrl+L | Library |
+| Grid | Exit | Ctrl+Q | Quit |
+| Go | Pause or Resume | Space | 재생기의 재생·정지 |
+| Go | Tick (Single Step) | Ctrl+T | Tick |
+| Go | Halt | Ctrl+0 | 속도 0 |
+| Go | Agonizing, Slow, Medium, Fast | Ctrl+1, 2, 3, 4 | 느린 것부터 |
+| Edit | Undo, Redo | Ctrl+Z, Ctrl+Y | 표준 |
+| Edit | Copy, Cut, Paste | Ctrl+C, Ctrl+X, Ctrl+V | 표준 |
+| Edit | Delete | Delete | 표준 |
+| Edit | Deselect | Esc | 선택 취소 |
+| Edit | Shortcuts... | Ctrl+K | Keys |
+| Tool | Click (Toggle), Pen, Eraser, Select | V, P, E, M | 그림 프로그램의 도구 글자 |
+| Rule | 프리셋 6개(메뉴 순서) | Ctrl+Shift+1~6 | 메뉴 순서 |
+| Rule | Custom... | Ctrl+R | Rule |
+| Boundary | Wall, Torus | Ctrl+Shift+W, Ctrl+Shift+T | 이름의 첫 글자 |
+
+정한 기준:
+
+- 다른 프로그램에서 같은 일에 쓰는 키를 따른다.
+- 숫자만 누르는 키는 쓰지 않는다. 타임라인에 세대 번호를 치는 칸이 있다. 속도와 규칙은 Ctrl과 함께 누른다.
+- 보드를 새로 시작하게 하는 명령(Clear, 규칙·경계 변경)은 Ctrl 조합으로 둔다.
+- Ctrl 없이 누르는 키는 Space와 도구의 글자 넷뿐이다(`DefaultKeymapTest.onlySpaceAndTheToolLettersAreSingleKeys`).
+
+함께 바꾼 것:
+
+- `Go > Pause or Resume` 항목과 `Clock.toggle()`. 멈췄다 잇는 명령이 하나 있어야 Space 하나에 지정할 수 있다. 원본의 Go 항목 여섯 개는 그대로다.
+- 입력 칸에 글자를 치는 동안에는 글자가 입력되는 키(Space, 글자, 숫자)의 명령을 실행하지 않는다(`KeyBinder.isTypingKey`). 고치기 전에는 타임라인의 숫자 칸에 글자를 치면 글자도 들어가고 명령도 실행됐다.
+
+알고 있는 한계:
+
+- 기본 단축키는 키맵 파일이 없을 때만 쓰인다. 이미 `~/.life-game/keymap.properties`가 있으면 그 파일이 쓰이고, 기본 키를 보려면 파일을 지워야 한다. 창에 "기본값으로 되돌리기"는 없다.
+- 포커스를 가진 부품이 직접 쓰는 키는 Swing이 그쪽을 먼저 처리한다. 버튼에 포커스가 있을 때의 Space는 그 버튼을 누르고, 통계 패널의 목록 상자에서는 목록을 연다. 보드, 탭, 슬라이더에 포커스가 있을 때는 Space가 Pause or Resume을 실행한다(실제 창에서 확인).
+- macOS에서도 Cmd가 아니라 Ctrl이다. macOS에서는 실행해 보지 않았다.
+- 표의 명령 id는 메뉴 항목의 이름에 묶여 있다. 메뉴 항목의 이름이나 위치를 바꾸면 `DefaultKeymap`도 고쳐야 한다. 표의 id가 실제 메뉴에 있는지는 JUnit이 아니라 실제 창 점검(K0)이 확인한다.
 
 ### 4.16 설정 파일 위치와 저장 시점
 

@@ -88,12 +88,9 @@ public final class ShortcutFeature {
 		});
 	}
 
-	/**
-	 * 키맵 파일이 없을 때 쓰는 기본 단축키.
-	 * 지금은 일부러 비워 두었다(구조만 제공). 기본 키를 정하려면 여기서 bind()를 부르면 된다.
-	 */
+	/** 키맵 파일이 없을 때 쓰는 기본 단축키. 표는 DefaultKeymap에 있다. */
 	private static Keymap defaultKeymap() {
-		return new Keymap();
+		return DefaultKeymap.create();
 	}
 
 	private Keymap loadKeymap() {
