@@ -24,6 +24,7 @@ import com.holub.life.edit.EditToolbox;
 import com.holub.life.edit.PasteTool;
 import com.holub.life.edit.SelectTool;
 import com.holub.life.edit.ToggleTool;
+import com.holub.life.patterns.PatternLibraryMenu;
 
 /**
  * The Universe is a mediator that sits between the Swing
@@ -170,6 +171,9 @@ public class Universe extends JPanel
 		        }
 			}
 		);
+
+        // Keep editor/storage details outside the original simulation mediator.
+        PatternLibraryMenu.installWhenReady(this, outermostCell);
 
 		Clock.instance().addClockListener //{=Universe.clock.subscribe}
 		(	new Clock.Listener()
