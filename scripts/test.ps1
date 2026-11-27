@@ -1,5 +1,7 @@
-# Compiles src/ and both test folders (test/ and tests/), then runs the JUnit 5 tests headless (no window).
+# Compiles src/ and both test folders (test/ and tests/), then runs all the JUnit 5 tests.
 # There are two test folders because feature branches used either name and the merge kept both.
+# No headless option is given: the tests that build a real menu (RealMenu in SimulationMenuTest)
+# only run when a display is available. Without a display only those tests end as "aborted".
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\test.ps1
 # Uses the JDK in JAVA_HOME if it is set, otherwise java/javac from PATH.
 # (Comments are ASCII on purpose: Windows PowerShell 5.1 misreads UTF-8 files without a BOM.)
@@ -38,8 +40,8 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & $javac -encoding UTF-8 -d out\test -cp "out\main;$junitJar" $testSources
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# -ea: the tests under tests/ were written to run with assertions on (see test.sh / test.bat in the root).
-& $java '-ea' '-Djava.awt.headless=true' -jar $junitJar execute `
+# -ea: the timeline and statistics tests under tests/ were written to run with assertions on.
+& $java '-ea' -jar $junitJar execute `
 	--class-path 'out\main;out\test' `
 	--scan-class-path out\test `
 	--details=tree `
