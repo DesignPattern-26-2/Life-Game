@@ -201,10 +201,13 @@ public class Universe extends JPanel
 		addToolToMenu( selectTool,				Cursor.TEXT_CURSOR,		 PAUSE_GAME   );
 
 		// 규칙이나 경계가 바뀌면 안정된 블록도 다시 계산해야 하므로
-		// 모든 블록을 깨운다.
+		// 모든 블록을 깨운다. 타임라인은 새 0세대부터 다시 시작한다:
+		// 한 타임라인 안의 세대는 모두 같은 규칙으로 계산된 것이어야 하고,
+		// "변화가 없어 멈춤" 표시도 이전 규칙의 결과라서 함께 지워야 한다.
 		settings.addListener
 		(	changed ->
 			{	outermostCell.activate();
+				history.reset();
 				repaint();
 			}
 		);

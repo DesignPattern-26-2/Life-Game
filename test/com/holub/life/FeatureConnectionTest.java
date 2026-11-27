@@ -32,7 +32,10 @@ class FeatureConnectionTest
 													() -> settings.boundary().figureNextState( cells ) );
 
 		Wiring()
-		{	settings.addListener( changed -> cells.activate() );
+		{	settings.addListener( changed ->
+			{	cells.activate();
+				history.reset();
+			});
 		}
 
 		/** 칸들을 살리고 타임라인에 편집을 알린다. (column,row) 쌍을 나열한다. */
@@ -100,4 +103,43 @@ class FeatureConnectionTest
 		assertTrue( w.history.isStable(), "블록은 더 변하지 않는다" );
 	}
 
+	/** 목적: 변화가 없어 멈춘(안정 상태) 보드에서도 규칙 변경이 다음 세대에 반영되는지 확인.
+	 *  통합 직후에는 타임라인의 안정 표시가 풀리지 않아 진행 요청이 그냥 돌아왔다. */
+	@Test
+	@DisplayName("[6] 멈춘 보드에서 Rule을 바꾸면 다음 세대에 새 규칙이 적용된다")
+	void ruleChangeOnAStillBoardAppliesOnTheNextGeneration()
+	{	Wiring w = new Wiring();
+		w.block( 30, 30 );
+		w.advance( 2 );
+		assertTrue( w.history.isStable(), "2x2 블록은 Conway 규칙에서 변하지 않는다" );
+
+		w.settings.setRule( LifeLikeRule.SEEDS );
+		w.advance( 1 );
+
+		assertEquals( 8, w.live(), "Seeds(B2/S)에서는 블록 4칸이 죽고 둘레에 8칸이 태어난다" );
+	}
+
+	/** 목적: 규칙·경계를 바꾸면 새 히스토리를 시작한다는 타임라인 규약 확인.
+	 *  한 타임라인 안의 세대는 모두 같은 규칙으로 계산된 것이어야 한다. */
+	@Test
+	@DisplayName("[6] 규칙이나 경계를 바꾸면 타임라인이 새 0세대부터 다시 시작한다")
+	void changingRuleOrBoundaryStartsANewHistory()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+
+		w.settings.setRule( LifeLikeRule.HIGHLIFE );
+
+		assertEquals( 0, w.history.currentGeneration() );
+		assertEquals( 0, w.history.firstGeneration() );
+		assertEquals( 0, w.history.lastGeneration(), "이전 규칙으로 계산한 12세대는 남지 않는다" );
+		assertEquals( 5, w.live(), "보드의 셀은 그대로다" );
+		assertTrue( w.timelineMatchesBoard() );
+
+		w.advance( 3 );
+		w.settings.setBoundary( BoundaryMode.TORUS );
+
+		assertEquals( 0, w.history.currentGeneration() );
+		assertEquals( 0, w.history.lastGeneration() );
+	}
 }
