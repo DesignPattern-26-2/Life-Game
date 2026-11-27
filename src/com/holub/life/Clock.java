@@ -73,6 +73,7 @@ public class Clock
 		}
 		if (clock != null) { clock.stop(); clock = null; }
 		if (millisecondsBetweenTicks > 0) {
+			lastInterval = millisecondsBetweenTicks;	// remembered for resume()
 			clock = new Timer(millisecondsBetweenTicks, e -> tick());
 			clock.setInitialDelay(0);
 			clock.start();
@@ -85,6 +86,18 @@ public class Clock
 
 	public void stop()
 	{	startTicking( 0 );
+	}
+
+	// The interval the clock last ran at. Until it has run once this is the
+	// "Slow" speed, which the timeline's run button used to start with.
+	private int lastInterval = 150;
+
+	/** Start ticking again at the speed the clock last ran at, so that a
+	 *  game paused by an edit continues as fast as the user had set it
+	 *  on the Go menu.
+	 */
+	public void resume()
+	{	startTicking( lastInterval );
 	}
 
 	/** Create the menu that controls the clock speed and

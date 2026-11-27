@@ -29,7 +29,7 @@ public final class TimelinePanel extends JPanel {
     }
 
     TimelinePanel(LifeHistory history, Clock clock) {
-        this(history, clock::stop, () -> clock.startTicking(150));
+        this(history, clock::stop, clock::resume); // Resume at the speed last chosen on the Go menu.
         running = clock::isRunning;
         clock.addStateListener(this::refreshPlayback);
         refreshPlayback();
