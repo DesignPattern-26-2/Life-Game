@@ -29,6 +29,7 @@ final class AuditSupport {
  static final class CounterBoard implements Cell {
   int state;final int period;
   CounterBoard(int period){this.period=period;}
+  public void activate(){} // Cell.activate()는 규칙·경계 기능이 추가했다. 이 가짜 보드는 매 tick 계산하므로 할 일이 없다.
   public int widthInCells(){return 8;} public Cell edge(int r,int c){return Cell.DUMMY;}
   public void redraw(Graphics g,Rectangle r,boolean all){} public void userClicked(Point p,Rectangle r){state=(state+17)%period;}
   public boolean isAlive(){return state!=0;}public Cell create(){return new CounterBoard(period);}

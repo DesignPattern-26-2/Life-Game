@@ -45,6 +45,7 @@ class CycleDetectorTest {
         private int state;
         private final int period;
         PeriodicBoard(int period) { this.period=period; }
+        public void activate() { } // Cell.activate()는 규칙·경계 기능이 추가했다. 이 가짜 보드는 매 tick 계산하므로 할 일이 없다.
         public int widthInCells() { return 8; }
         public Cell edge(int row,int column) { return Cell.DUMMY; }
         public void redraw(java.awt.Graphics g,java.awt.Rectangle r,boolean all) { }
