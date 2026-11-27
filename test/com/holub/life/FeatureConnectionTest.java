@@ -6,7 +6,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.holub.life.edit.BoardEditor;
+import com.holub.life.edit.BrushTool;
 import com.holub.life.edit.CellBoardEditor;
+import com.holub.life.edit.ClipboardEditor;
+import com.holub.life.edit.EditSession;
+import com.holub.life.edit.EditTool;
+import com.holub.life.edit.EditToolbox;
+import com.holub.life.edit.SelectTool;
+import com.holub.life.edit.ToggleTool;
 
 /***
  * 기능 사이의 연결 테스트.
@@ -27,9 +34,22 @@ class FeatureConnectionTest
 	{
 		final SimulationSettings settings = new SimulationSettings();
 		final Cell               cells    = new Neighborhood( 8, new Neighborhood( 8, new Resident(settings) ));
-		final BoardEditor        board    = new CellBoardEditor( cells );
 		final LifeHistory        history  = new LifeHistory( cells,
 													() -> settings.boundary().figureNextState( cells ) );
+
+		final BoardEditor     board     = new CellBoardEditor( cells );
+		final EditTool        toggle    = new ToggleTool( board );
+		final EditTool        pen       = BrushTool.pen( board );
+		final EditTool        eraser    = BrushTool.eraser( board );
+		final SelectTool      select    = new SelectTool( board.width() );
+		final EditToolbox     toolbox   = new EditToolbox( toggle );
+		final ClipboardEditor clipboard = new ClipboardEditor( board, select );
+
+		int pauses;		// 진행을 멈추라는 요청 횟수. Universe에서는 Clock.instance().stop()
+		int notices;	// 타임라인이 "편집이 끝났다"는 알림을 받은 횟수
+
+		final EditSession edits = new EditSession( board, () -> pauses++,
+												   () -> { notices++; history.boardEdited(); } );
 
 		Wiring()
 		{	settings.addListener( changed ->
@@ -38,11 +58,51 @@ class FeatureConnectionTest
 			});
 		}
 
-		/** 칸들을 살리고 타임라인에 편집을 알린다. (column,row) 쌍을 나열한다. */
+		// ----- Universe의 마우스 처리와 같은 순서 -----
+
+		void press( int column, int row )
+		{	edits.begin();
+			toolbox.pressed( column, row );
+		}
+		void dragTo( int column, int row )
+		{	toolbox.dragged( column, row );
+		}
+		void release( int column, int row )
+		{	toolbox.released( column, row );
+			edits.end();
+		}
+		void click( int column, int row )
+		{	press( column, row );
+			release( column, row );
+		}
+		/** (fromColumn,row)에서 누르고 (toColumn,row)까지 한 칸씩 끌고 놓는다. */
+		void stroke( EditTool tool, int fromColumn, int toColumn, int row )
+		{	toolbox.select( tool );
+			press( fromColumn, row );
+			for( int column = fromColumn + 1; column <= toColumn; ++column )
+				dragTo( column, row );
+			release( toColumn, row );
+		}
+		/** 선택 도구로 사각형 영역을 고른다. */
+		void selectRegion( int left, int top, int right, int bottom )
+		{	toolbox.select( select );
+			press( left, top );
+			dragTo( right, bottom );
+			release( right, bottom );
+		}
+
+		// ----- Universe의 Edit 메뉴 처리와 같은 순서 -----
+
+		void menuDelete() { edits.run( clipboard::deleteSelection ); }
+		void menuCut()    { edits.run( clipboard::cut ); }
+
+		// ----- 준비용 -----
+
+		/** 기본 도구(클릭하면 토글)로 칸을 하나씩 켠다. (column,row) 쌍을 나열한다. */
 		void draw( int... columnRowPairs )
-		{	for( int i = 0; i < columnRowPairs.length; i += 2 )
-				board.setAlive( columnRowPairs[i], columnRowPairs[i+1], true );
-			history.boardEdited();
+		{	toolbox.select( toggle );
+			for( int i = 0; i < columnRowPairs.length; i += 2 )
+				click( columnRowPairs[i], columnRowPairs[i+1] );
 		}
 
 		/** 오른쪽 아래로 움직이는 글라이더. (column,row)는 3×3 틀의 왼쪽 위다. */
@@ -69,6 +129,123 @@ class FeatureConnectionTest
 		{	return history.statisticsAt( history.currentGeneration() ).board
 						  .equals( BoardSnapshot.capture(cells) );
 		}
+	}
+
+	// ---------------------------------------------------------------
+	// 편집 → 타임라인
+	// ---------------------------------------------------------------
+
+	/** 목적: 펜으로 여러 칸을 그은 결과가 타임라인의 현재 세대 기록에 모두 들어가는지 확인.
+	 *  통합 직후에는 마우스를 누른 순간에만 타임라인에 알려서, 끌면서 켠 칸은 기록에서 빠졌다. */
+	@Test
+	@DisplayName("[1] 펜으로 5칸을 그으면 편집 한 번으로 알리고, 타임라인 기록에 5칸이 모두 들어간다")
+	void aPenStrokeIsRecordedCompletelyAndOnlyOnce()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		int before = w.notices;
+
+		w.stroke( w.pen, 40, 44, 50 );
+
+		assertEquals( before + 1, w.notices, "칸마다가 아니라 편집 한 번에 한 번 알린다" );
+		assertEquals( 10, w.live(), "글라이더 5칸 + 그은 5칸" );
+		assertTrue( w.timelineMatchesBoard() );
+		assertEquals( 12, w.history.currentGeneration(), "편집은 현재 세대의 편집이다. 세대 번호는 그대로다" );
+	}
+
+	/** 목적: 지우개도 같은 경로로 기록되는지 확인. */
+	@Test
+	@DisplayName("[1] 지우개로 지운 칸도 타임라인 기록에 반영된다")
+	void anEraserStrokeIsRecordedToo()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 40, 44, 50 );
+
+		w.stroke( w.eraser, 41, 42, 50 );
+
+		assertEquals( 3, w.live() );
+		assertTrue( w.timelineMatchesBoard() );
+	}
+
+	/** 목적: 편집이 시작되면 게임 진행을 멈추라고 요청하는지 확인(팀이 정한 동작). */
+	@Test
+	@DisplayName("[1] 편집을 시작하면 진행을 멈추라고 요청한다")
+	void anEditAsksTheGameToPause()
+	{	Wiring w = new Wiring();
+
+		w.press( 10, 10 );
+
+		assertEquals( 1, w.pauses );
+	}
+
+	/** 목적: 마우스가 아닌 Edit 메뉴 명령으로 지운 것도 타임라인에 기록되는지 확인.
+	 *  통합 직후에는 Delete와 Cut이 타임라인에 알리지 않아, 지운 칸이 기록에는 남아 있었다. */
+	@Test
+	@DisplayName("[2] Edit 메뉴의 Delete로 지운 칸이 타임라인 기록에서도 지워진다")
+	void deleteFromTheEditMenuIsRecorded()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.stroke( w.pen, 40, 44, 50 );
+		w.selectRegion( 39, 49, 45, 51 );
+		int before = w.notices;
+
+		w.menuDelete();
+
+		assertEquals( 5, w.live(), "그은 5칸이 지워지고 글라이더만 남는다" );
+		assertEquals( before + 1, w.notices );
+		assertTrue( w.timelineMatchesBoard() );
+	}
+
+	@Test
+	@DisplayName("[2] Edit 메뉴의 Cut으로 잘라낸 칸이 타임라인 기록에서도 지워진다")
+	void cutFromTheEditMenuIsRecorded()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.stroke( w.pen, 40, 44, 50 );
+		w.selectRegion( 39, 49, 45, 51 );
+		int before = w.notices;
+
+		w.menuCut();
+
+		assertEquals( 5, w.live() );
+		assertEquals( before + 1, w.notices );
+		assertTrue( w.timelineMatchesBoard() );
+		assertTrue( w.clipboard.hasContent(), "잘라낸 것은 클립보드에 남는다" );
+	}
+
+	/** 목적: 셀을 바꾸지 않는 조작이 타임라인의 뒤쪽 기록을 지우지 않는지 확인.
+	 *  통합 직후에는 마우스를 누르기만 해도 편집으로 알려서, 과거 세대를 보다가
+	 *  선택 도구로 빈 칸을 클릭하면 그 뒤의 세대 기록이 모두 사라졌다. */
+	@Test
+	@DisplayName("[4] 과거 세대에서 선택 도구로 빈 칸을 클릭해도 뒤쪽 세대 기록이 남는다")
+	void aClickThatChangesNoCellKeepsLaterGenerations()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		w.history.seek( 5 );
+		int before = w.notices;
+
+		w.selectRegion( 60, 60, 60, 60 );
+
+		assertEquals( before, w.notices, "셀이 바뀌지 않았으므로 알리지 않는다" );
+		assertEquals( 5,  w.history.currentGeneration() );
+		assertEquals( 12, w.history.lastGeneration(), "6~12세대 기록이 그대로 있다" );
+	}
+
+	/** 목적: 위 수정이 타임라인의 원래 규약(과거에서 셀을 실제로 바꾸면
+	 *  그 뒤의 기록을 지운다)까지 없애지 않았는지 확인. */
+	@Test
+	@DisplayName("[4] 과거 세대에서 셀을 실제로 바꾸면 타임라인 규약대로 뒤쪽 기록이 지워진다")
+	void aRealEditInThePastStillDiscardsLaterGenerations()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		w.history.seek( 5 );
+
+		w.draw( 60, 60 );
+
+		assertEquals( 5, w.history.currentGeneration() );
+		assertEquals( 5, w.history.lastGeneration() );
+		assertTrue( w.timelineMatchesBoard() );
 	}
 
 	// ---------------------------------------------------------------

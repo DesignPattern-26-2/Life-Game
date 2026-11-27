@@ -21,6 +21,7 @@ import com.holub.life.edit.CellCoordinates;
 import com.holub.life.edit.EditTool;
 import com.holub.life.edit.ClipboardEditor;
 import com.holub.life.edit.EditToolbox;
+import com.holub.life.edit.EditSession;
 import com.holub.life.edit.PasteTool;
 import com.holub.life.edit.SelectTool;
 import com.holub.life.edit.ToggleTool;
@@ -41,6 +42,7 @@ public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
 	private 		final EditToolbox toolbox;
 	private 		final SelectTool  selectTool;
+	private 		final EditSession edits;
 	private final LifeHistory history;
 	private static	final Universe 	theInstance = new Universe();
 
@@ -124,13 +126,19 @@ public class Universe extends JPanel
 		toolbox    = new EditToolbox( toggle );
 		selectTool = new SelectTool( board.width() );
 
+		// 편집 한 번은 마우스를 누르고 뗄 때까지, 또는 Edit 메뉴 명령 하나다.
+		// 시작하면 게임 진행을 멈추고, 셀이 실제로 바뀐 편집만 끝날 때
+		// 타임라인에 한 번 알린다(현재 세대의 편집으로 기록된다).
+
+		edits = new EditSession( board, () -> Clock.instance().stop(),
+										history::boardEdited );
+
 		MouseAdapter mouse =				//{=Universe.mouse}
 			new MouseAdapter()
 			{	public void mousePressed(MouseEvent e)
 				{	Point cell = cellAt(e);
-					Clock.instance().stop();
+					edits.begin();
 					toolbox.pressed( cell.x, cell.y );
-					history.boardEdited();
 					repaint();
 				}
 				public void mouseDragged(MouseEvent e)
@@ -141,6 +149,7 @@ public class Universe extends JPanel
 				public void mouseReleased(MouseEvent e)
 				{	Point cell = cellAt(e);
 					toolbox.released( cell.x, cell.y );
+					edits.end();
 					repaint();
 				}
 			};
@@ -261,7 +270,7 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Edit", "Cut",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	clipboard.cut();
+				{	edits.run( clipboard::cut );
 					repaint();
 				}
 			}
@@ -282,7 +291,7 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Edit", "Delete",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	clipboard.deleteSelection();
+				{	edits.run( clipboard::deleteSelection );
 					repaint();
 				}
 			}
