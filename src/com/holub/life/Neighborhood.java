@@ -478,6 +478,14 @@ public final class Neighborhood implements Cell
 			}
 			upperLeft.translate(-myWidth, subcellWidth );
 		}
+		// A snapshot contains live cells, not incremental calculation caches.
+		// Recompute every block once after LOAD, including empty neighbors
+		// in which cells may be born across a neighborhood boundary.
+		if (load) {
+			amActive = true;
+			activeEdges.add(Direction.ALL);
+			oneLastRefreshRequired = true;
+		}
 		return amActive;
 	}
 

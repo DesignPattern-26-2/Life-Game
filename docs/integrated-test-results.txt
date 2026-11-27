@@ -1,0 +1,246 @@
+WARNING: Final field allParameters in class org.junit.platform.console.options.MainCommand has been mutated reflectively by class org.junit.platform.console.shadow.picocli.CommandLine$Model$FieldBinding in unnamed module @6956de9 (file:/Users/nayoung/Documents/Codex/2026-11-20/holub-life-game-6-2/outputs/Life-Game-timeline-statistics/lib/junit-platform-console-standalone-1.11.4.jar)
+WARNING: Use --enable-final-field-mutation=ALL-UNNAMED to avoid a warning
+WARNING: Mutating final fields will be blocked in a future release unless final field mutation is enabled
+
+Thanks for using JUnit! Support its development at https://junit.org/sponsoring
+
+╷
+├─ JUnit Platform Suite ✔
+├─ JUnit Jupiter ✔
+│  ├─ LifeHistoryTest ✔
+│  │  ├─ resumingPastStateReplaysCorrectly() ✔
+│  │  ├─ listenersObserveCommittedGenerationAndRestoredBoard() ✔
+│  │  ├─ stableBlockStopsAtItsExistingGeneration() ✔
+│  │  ├─ movingGliderPlusBlinkerIsNotAWholeBoardRepeat() ✔
+│  │  ├─ snapshotEqualityChecksPositionsAndSealsData() ✔
+│  │  ├─ continuousPlaybackPreservesEditsUntilAnotherExplicitEditBranches() ✔
+│  │  ├─ editDuringRepetitionPreservesRetainedPast() ✔
+│  │  ├─ emptyBoardStillHasHistory() ✔
+│  │  ├─ seekingAfterDetectionClearsCycleAndAllowsARealBranch() ✔
+│  │  ├─ editedBranchMustNotTreatUneditedPastAsCycle() ✔
+│  │  ├─ resetAfterDetectionReturnsToGenerationZero() ✔
+│  │  ├─ pastEditDiscardsFutureAndRecomputesFromEditedState() ✔
+│  │  ├─ gliderCrossesNeighborhoodBoundariesAndReplays() ✔
+│  │  ├─ intervalMovesClampAndDoNotSimulate() ✔
+│  │  ├─ seededRandomBoardMatchesIndependentRulesAfterRestore() ✔
+│  │  ├─ transientBeforeEmptyBoardIsRetained() ✔
+│  │  ├─ editingOrSeekingStableBoardAllowsProgressAgain() ✔
+│  │  ├─ stableAfterTransientDoesNotCountExtraGenerations() ✔
+│  │  ├─ stableBlockAndBlinkerDetectCycleAfterTransientAndKeepSaving() ✔
+│  │  ├─ blinkerCanTravelBackwardAndForwardExactly() ✔
+│  │  ├─ originalLifeFormatRoundTripsThenStartsNewSession() ✔
+│  │  ├─ snapshotDoesNotChangeWhenBoardIsEdited() ✔
+│  │  ├─ invalidSeekLeavesBoardUnchanged() ✔
+│  │  ├─ blinkerContinuesSavingAfterRepeatAndKeepsRealTimeAndAnimation() ✔
+│  │  ├─ clearAndResetDiscardOldSession() ✔
+│  │  ├─ restoredBoundaryBirthMustActivateEmptyAdjacentBlock() ✔
+│  │  └─ editedBranchStillDetectsItsOwnRealCycle() ✔
+│  ├─ CycleDetectorTest ✔
+│  │  ├─ nonRepeatingRunStillEvictsOldestAtFixedCapacity() ✔
+│  │  ├─ detectsLongAndShortCyclesAfterDifferentTransients() ✔
+│  │  ├─ cyclesLongerThanRetentionAreDetectedWithoutUnboundedStorage() ✔
+│  │  └─ equalityIsNotJustHashEquality() ✔
+│  ├─ ReplayCycleAuditTest ✔
+│  │  ├─ replayingDetectedBlinkerPreservesExistingHistory() ✔
+│  │  └─ replayingStableLastStateImmediatelyRestoresStopStatus() ✔
+│  ├─ EditAfterCapacityTest ✔
+│  │  ├─ realLifeEditAt1005PreservesOldSnapshotsAndSliderReplay(int) ✔
+│  │  │  ├─ [1] 1005 ✔
+│  │  │  └─ [2] 1020 ✔
+│  │  ├─ editingStoredTipPreservesEveryEarlierStateAcrossCapacityBoundary(int) ✔
+│  │  │  ├─ [1] 999 ✔
+│  │  │  ├─ [2] 1000 ✔
+│  │  │  └─ [3] 1005 ✔
+│  │  ├─ returningToStoredTipBeforeEditingPreservesFullCapacityEvenAfterCycle() ✔
+│  │  ├─ editingRepeated1005KeepsEarlierRecords() ✔
+│  │  └─ editing1005AfterFullCapacityCycleKeepsEarlierRecords() ✔
+│  ├─ GenerationHistoryTest ✔
+│  │  ├─ resetAtPreservesAbsoluteTimeAfterUnsavedGap() ✔
+│  │  ├─ seekDoesNotDestroyFuture() ✔
+│  │  ├─ retentionKeepsAbsoluteGenerationNumbers() ✔
+│  │  ├─ invalidSeekDoesNotMoveCursor() ✔
+│  │  ├─ resetStartsNewGenerationZeroAndKeepsCapacity() ✔
+│  │  ├─ initialStateIsGenerationZero() ✔
+│  │  ├─ appendInPastBranches() ✔
+│  │  ├─ invalidCapacityIsRejected() ✔
+│  │  └─ editReplacesCurrentWithoutAddingGeneration() ✔
+│  ├─ StatisticsPanelTest ✔
+│  │  ├─ 군집 지도와 선택한 셀의 생사가 조회 세대를 따른다 ✔
+│  │  └─ 지표를 바꾸면 블링커의 생존율과 재등장 빈도가 다른 곡선으로 그려진다 ✔
+│  ├─ TimelineStatisticsTest ✔
+│  │  ├─ clustersJoinDiagonalsAndStableTicksKeepTheSameFrame() ✔
+│  │  ├─ pastEditsTruncateStatisticsAndStartANewBaseline() ✔
+│  │  ├─ blinkerMetricsFollowLiveTimeAndReplay() ✔
+│  │  └─ longCyclesCountOnlyConfirmedRepeatsAndAllowLiveEdits() ✔
+│  ├─ ContinuousTimelineTest ✔
+│  │  ├─ largeCapacityWrapAndPastEditRetainAbsoluteNumbers(int) ✔
+│  │  │  ├─ [1] 100000 ✔
+│  │  │  └─ [2] 1000000 ✔
+│  │  ├─ detailSliderNavigatesLargeTimelineAndTracksBranchResetAndEviction() ✔
+│  │  ├─ editing1200DuringBlinkerRepeatKeeps201Through1199() ✔
+│  │  ├─ onePlaybackButtonFollowsClockMenusNavigationEditsAndStableStop() ✔
+│  │  ├─ circularHistoryMatchesIndependentMapThroughWrapBranchAndReset(int) ✔
+│  │  │  ├─ [1] 2 ✔
+│  │  │  ├─ [2] 3 ✔
+│  │  │  ├─ [3] 17 ✔
+│  │  │  └─ [4] 1000 ✔
+│  │  └─ detailWindowClampsWhileSmallRetentionEvicts() ✔
+│  ├─ InputAndTimerAuditTest ✔
+│  │  ├─ editingRepeatedGenerationKeepsSliderHistory() ✔
+│  │  ├─ invalidIntervalIsRejectedWithoutNavigation(String) ✔
+│  │  │  ├─ [1]  ✔
+│  │  │  ├─ [2] abc ✔
+│  │  │  ├─ [3] 0 ✔
+│  │  │  ├─ [4] -1 ✔
+│  │  │  ├─ [5] 1001 ✔
+│  │  │  ├─ [6] 2147483648 ✔
+│  │  │  ├─ [7] 1.5 ✔
+│  │  │  ├─ [8] 10abc ✔
+│  │  │  └─ [9] 1e2 ✔
+│  │  ├─ invalidGenerationDoesNotAlterPositionOrRange(String) ✔
+│  │  │  ├─ [1]  ✔
+│  │  │  ├─ [2]   ✔
+│  │  │  ├─ [3] abc ✔
+│  │  │  ├─ [4] 1.5 ✔
+│  │  │  ├─ [5] 1e2 ✔
+│  │  │  ├─ [6] -1 ✔
+│  │  │  ├─ [7] 21 ✔
+│  │  │  ├─ [8] 2147483648 ✔
+│  │  │  └─ [9] -2147483649 ✔
+│  │  ├─ actualSwingClockReplaysManualEditThenStopsWithoutExtraTicks() ✔
+│  │  ├─ actualClockStopsOnStableBoardAndCanRestartAfterEditing() ✔
+│  │  ├─ sliderRangeTracksEvictionAndBranchAtNonzeroGeneration(int) ✔
+│  │  │  ├─ [1] 3 ✔
+│  │  │  └─ [2] 1000 ✔
+│  │  ├─ clockStartedOffEventThreadDeliversTicksOnEventThread() ✔
+│  │  ├─ typedIntervalsCommitAndClamp(int) ✔
+│  │  │  ├─ [1] 1 ✔
+│  │  │  ├─ [2] 3 ✔
+│  │  │  ├─ [3] 10 ✔
+│  │  │  └─ [4] 1000 ✔
+│  │  └─ validGenerationEntryAndEnterNavigateExactly(String) ✔
+│  │     ├─ [1] 0 ✔
+│  │     ├─ [2] 1 ✔
+│  │     ├─ [3]  12  ✔
+│  │     └─ [4] 20 ✔
+│  ├─ CustomDetailAndStatisticsTest ✔
+│  │  ├─ fullDefaultRetentionKeepsStatisticsAndEditedRepeatInOneTimeline() ✔
+│  │  ├─ customRangePersistsThroughOutsideNavigationAndReopening() ✔
+│  │  ├─ invalidRangeLeavesBoardAndAppliedViewportUnchanged(String, String) ✔
+│  │  │  ├─ [1] , 30 ✔
+│  │  │  ├─ [2]  , 30 ✔
+│  │  │  ├─ [3] abc, 30 ✔
+│  │  │  ├─ [4] 1.5, 30 ✔
+│  │  │  ├─ [5] 1e2, 30 ✔
+│  │  │  ├─ [6] -1, 30 ✔
+│  │  │  ├─ [7] 2147483648, 30 ✔
+│  │  │  ├─ [8] 25, 24 ✔
+│  │  │  ├─ [9] 0, 51 ✔
+│  │  │  ├─ [10] 0, abc ✔
+│  │  │  ├─ [11] 0, 2147483648 ✔
+│  │  │  └─ [12] 0,  ✔
+│  │  ├─ customRangeClampsOnEvictionAndEditAndRejectsExpiredNumbers() ✔
+│  │  └─ typingSurvivesUpdatesAndWideOrSingleRangesAreUsable() ✔
+│  ├─ TimelinePanelTest ✔
+│  │  ├─ repeatedGenerationsStayStoredAndInputMatchesCurrent() ✔
+│  │  ├─ sliderDefersRestoreUntilReleaseAndModelRefreshDoesNotSeek() ✔
+│  │  ├─ fixedCapacityHasNoUserSetting() ✔
+│  │  ├─ playbackActionsAreWiredAndStepCreatesNewGeneration() ✔
+│  │  ├─ editingGenerationTenImmediatelyTruncatesSliderAndStartsNewEleven() ✔
+│  │  ├─ stableBoardPausesPlaybackAndStepDoesNotIncrement() ✔
+│  │  ├─ numberAndIntervalButtonsRestoreAndPause() ✔
+│  │  └─ steppingAcrossEditAfterFifteenTicksReplaysStoredBranchWithoutOverwriting() ✔
+│  ├─ RetentionAndPatternAuditTest ✔
+│  │  ├─ glidersAtBordersMatchIndependentLifeRules(int, int) ✔
+│  │  │  ├─ glider edge/block position 0, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 0, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 0, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 0, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 5, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 5, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 5, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 5, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 6, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 6, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 6, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 6, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 7, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 7, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 7, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 7, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 8, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 8, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 8, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 8, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 30, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 30, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 30, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 30, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 60, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 60, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 60, rotation 2 ✔
+│  │  │  ├─ glider edge/block position 60, rotation 3 ✔
+│  │  │  ├─ glider edge/block position 61, rotation 0 ✔
+│  │  │  ├─ glider edge/block position 61, rotation 1 ✔
+│  │  │  ├─ glider edge/block position 61, rotation 2 ✔
+│  │  │  └─ glider edge/block position 61, rotation 3 ✔
+│  │  ├─ twentyThousandNonRepeatingStepsKeepOnlyOneThousandSnapshots() ✔
+│  │  ├─ legacyFileRoundTripPreservesSparseDenseEmptyAndCorners(int) ✔
+│  │  │  ├─ [1] 0 ✔
+│  │  │  ├─ [2] 1 ✔
+│  │  │  ├─ [3] 2 ✔
+│  │  │  └─ [4] 3 ✔
+│  │  ├─ evictionReplayAndBranchPreserveAbsoluteNumbers(int) ✔
+│  │  │  ├─ [1] 2 ✔
+│  │  │  ├─ [2] 3 ✔
+│  │  │  ├─ [3] 17 ✔
+│  │  │  ├─ [4] 999 ✔
+│  │  │  └─ [5] 1000 ✔
+│  │  └─ detectedLongCyclesKeepContiguousHistoryAfterReplay(int) ✔
+│  │     ├─ [1] 999 ✔
+│  │     ├─ [2] 1000 ✔
+│  │     ├─ [3] 1001 ✔
+│  │     ├─ [4] 1009 ✔
+│  │     └─ [5] 2048 ✔
+│  └─ RandomWorkflowAuditTest ✔
+│     └─ randomActionSequencesMatchIndependentOracle(int) ✔
+│        ├─ independent timeline oracle seed 0 ✔
+│        ├─ independent timeline oracle seed 1 ✔
+│        ├─ independent timeline oracle seed 2 ✔
+│        ├─ independent timeline oracle seed 3 ✔
+│        ├─ independent timeline oracle seed 4 ✔
+│        ├─ independent timeline oracle seed 5 ✔
+│        ├─ independent timeline oracle seed 6 ✔
+│        ├─ independent timeline oracle seed 7 ✔
+│        ├─ independent timeline oracle seed 8 ✔
+│        ├─ independent timeline oracle seed 9 ✔
+│        ├─ independent timeline oracle seed 10 ✔
+│        ├─ independent timeline oracle seed 11 ✔
+│        ├─ independent timeline oracle seed 12 ✔
+│        ├─ independent timeline oracle seed 13 ✔
+│        ├─ independent timeline oracle seed 14 ✔
+│        ├─ independent timeline oracle seed 15 ✔
+│        ├─ independent timeline oracle seed 16 ✔
+│        ├─ independent timeline oracle seed 17 ✔
+│        ├─ independent timeline oracle seed 18 ✔
+│        ├─ independent timeline oracle seed 19 ✔
+│        ├─ independent timeline oracle seed 20 ✔
+│        ├─ independent timeline oracle seed 21 ✔
+│        ├─ independent timeline oracle seed 22 ✔
+│        └─ independent timeline oracle seed 23 ✔
+└─ JUnit Vintage ✔
+
+Test run finished after 5434 ms
+[        31 containers found      ]
+[         0 containers skipped    ]
+[        31 containers started    ]
+[         0 containers aborted    ]
+[        31 containers successful ]
+[         0 containers failed     ]
+[       193 tests found           ]
+[         0 tests skipped         ]
+[       193 tests started         ]
+[         0 tests aborted         ]
+[       193 tests successful      ]
+[         0 tests failed          ]
+

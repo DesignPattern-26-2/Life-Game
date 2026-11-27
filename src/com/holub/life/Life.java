@@ -16,7 +16,7 @@ public final class Life extends JFrame
 	private static JComponent universe;
 
 	public static void main( String[] arguments )
-	{	new Life();
+	{	SwingUtilities.invokeLater(Life::new);
 	}
 
 	private static final String TITLE = "The Game of Life. "
@@ -44,7 +44,11 @@ public final class Life extends JFrame
 		showSettingsInTitle( settings );
 		settings.addListener( this::showSettingsInTitle );
 
+		LifeHistory history = Universe.instance().history();
+		getContentPane().add(new TimelinePanel(history), BorderLayout.SOUTH);
+		getContentPane().add(new StatisticsPanel(history), BorderLayout.EAST);
 		pack();
+		setMinimumSize(getSize());
 		setVisible( true );
 	}
 

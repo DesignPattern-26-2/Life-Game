@@ -4,7 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 import java.util.*;
-import java.util.Timer;		// overrides java.awt.timer
+import javax.swing.Timer; // Serialize ticks and UI edits on the event thread.
 import com.holub.ui.MenuSite;
 import com.holub.tools.Publisher;
 
@@ -27,15 +27,24 @@ import com.holub.tools.Publisher;
  */
 
 public class Clock
-{	private Timer			clock		= new Timer();
-	private TimerTask		tick		= null;
+{	private Timer clock;
+	private final java.util.List<Runnable> stateListeners = new ArrayList<>();
+
+	public boolean isRunning() { return clock != null && clock.isRunning(); }
+	public void addStateListener(Runnable listener) { stateListeners.add(listener); }
+	private void stateChanged() { for (Runnable listener : stateListeners) listener.run(); }
 
 	// The clock can't be an everything-is-static singleton because
 	// it creates a menu, and it can't do that until the menus
 	// are established.
 	//
 	private Clock()
-	{	createMenus();
+	{	this(true);
+	}
+
+	// Isolate the timer from the global menu site for integration tests.
+	Clock(boolean installMenus)
+	{	if (installMenus) createMenus();
 	}
 
 	private static Clock instance;
@@ -57,17 +66,18 @@ public class Clock
 	 */
 
 	public void startTicking( int millisecondsBetweenTicks )
-	{	if(tick != null)
-		{	tick.cancel();
-			tick=null;
+	{
+		if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(() -> startTicking(millisecondsBetweenTicks));
+			return;
 		}
-
-		if( millisecondsBetweenTicks > 0 )
-		{	tick =	new TimerTask()
-					{	public void run(){ tick(); }
-					};
-			clock.scheduleAtFixedRate( tick, 0, millisecondsBetweenTicks);
+		if (clock != null) { clock.stop(); clock = null; }
+		if (millisecondsBetweenTicks > 0) {
+			clock = new Timer(millisecondsBetweenTicks, e -> tick());
+			clock.setInitialDelay(0);
+			clock.start();
 		}
+		stateChanged();
 	}
 
 	/** Stop the clock
@@ -139,7 +149,11 @@ public class Clock
 	 *  stopped. (Life uses this for single stepping.)
 	 */
 	public void tick()
-	{	publisher.publish
+	{	if (!SwingUtilities.isEventDispatchThread()) {
+			SwingUtilities.invokeLater(this::tick);
+			return;
+		}
+		publisher.publish
 		(	new Publisher.Distributor()
 			{	public void deliverTo( Object subscriber )
 				{	if( !menuIsActive() )

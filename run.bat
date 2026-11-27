@@ -13,3 +13,4 @@ if errorlevel 1 (
     exit /b 1
 )
 "%JAVA%" -cp bin com.holub.life.Life
+pause

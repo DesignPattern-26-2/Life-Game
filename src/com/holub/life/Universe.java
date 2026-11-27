@@ -41,6 +41,7 @@ public class Universe extends JPanel
 {	private 		final Cell  	outermostCell;
 	private 		final EditToolbox toolbox;
 	private 		final SelectTool  selectTool;
+	private final LifeHistory history;
 	private static	final Universe 	theInstance = new Universe();
 
 	/** The default height and width of a Neighborhood in cells.
@@ -77,6 +78,9 @@ public class Universe extends JPanel
 							)
 						);
 
+		history = new LifeHistory(outermostCell);
+		history.addChangeListener(this::repaint);
+
 		final Dimension PREFERRED_SIZE =
 						new Dimension
 						(  outermostCell.widthInCells() * DEFAULT_CELL_SIZE,
@@ -93,6 +97,8 @@ public class Universe extends JPanel
 					// total size must be an even multiple of 63.
 
 					Rectangle bounds = getBounds();
+					// Leave room for the statistics panel when the window grows taller.
+					bounds.height = Math.min(bounds.height, bounds.width);
 					bounds.height /= outermostCell.widthInCells();
 					bounds.height *= outermostCell.widthInCells();
 					bounds.width  =  bounds.height;
@@ -119,7 +125,9 @@ public class Universe extends JPanel
 			new MouseAdapter()
 			{	public void mousePressed(MouseEvent e)
 				{	Point cell = cellAt(e);
+					Clock.instance().stop();
 					toolbox.pressed( cell.x, cell.y );
+					history.boardEdited();
 					repaint();
 				}
 				public void mouseDragged(MouseEvent e)
@@ -139,7 +147,9 @@ public class Universe extends JPanel
 		MenuSite.addLine( this, "Grid", "Clear",
 			new ActionListener()
 			{	public void actionPerformed(ActionEvent e)
-				{	outermostCell.clear();
+				{	Clock.instance().stop();
+					outermostCell.clear();
+					history.reset();
 					repaint();
 				}
 			}
@@ -175,18 +185,7 @@ public class Universe extends JPanel
         // Keep editor/storage details outside the original simulation mediator.
         PatternLibraryMenu.installWhenReady(this, outermostCell);
 
-		Clock.instance().addClockListener //{=Universe.clock.subscribe}
-		(	new Clock.Listener()
-			{	public void tick()
-				{	// 원본은 여기서 이웃으로 Cell.DUMMY 8개를 직접 넘겼다.
-					// 이제 어떤 이웃을 넘길지는 경계 모드(Strategy)가 정한다.
-					if( settings.boundary().figureNextState( outermostCell ) )
-					{	if( outermostCell.transition() )
-							refreshNow();
-					}
-				}
-			}
-		);
+		Clock.instance().addClockListener(history::advance);
 
 		// Clock 이 Go 메뉴를 만든 뒤에 등록해서 원본 메뉴(Grid, Go)가
 		// 앞에 오고 Tool 메뉴가 그 뒤에 붙게 한다.
@@ -328,6 +327,9 @@ public class Universe extends JPanel
 	{	return settings;
 	}
 
+	/** Integration point for timeline controls and other board-editing features. */
+	public LifeHistory history() { return history; }
+
 	/** Singleton Accessor. The Universe object itself is manufactured
 	 *  in Neighborhood.createUniverse()
 	 */
@@ -337,44 +339,34 @@ public class Universe extends JPanel
 	}
 
 	private void doLoad()
-	{	try
-		{
-			FileInputStream in = new FileInputStream(
-			   Files.userSelected(".",".life","Life File","Load"));
-
-			Clock.instance().stop();		// stop the game and
-			outermostCell.clear();			// clear the board.
-
+	{
+		Clock.instance().stop();
+		File file;
+		try { file = Files.userSelected(".", ".life", "Life File", "Load"); }
+		catch (FileNotFoundException cancelled) { return; }
+		try (InputStream in = new FileInputStream(file)) {
+			// Parse before mutating the visible board or its history.
 			Storable memento = outermostCell.createMemento();
-			memento.load( in );
-			outermostCell.transfer( memento, new Point(0,0), Cell.LOAD );
-
-			in.close();
-		}
-		catch( IOException theException )
-		{	JOptionPane.showMessageDialog( null, "Read Failed!",
-					"The Game of Life", JOptionPane.ERROR_MESSAGE);
+			memento.load(in);
+			outermostCell.clear();
+			outermostCell.transfer(memento, new Point(0, 0), Cell.LOAD);
+			history.reset();
+		} catch (IOException | ClassCastException ex) {
+			JOptionPane.showMessageDialog(this, "Read Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
 		}
 		repaint();
 	}
 
 	private void doStore()
-	{	try
-		{
-			FileOutputStream out = new FileOutputStream(
-				  Files.userSelected(".",".life","Life File","Write"));
-
-			Clock.instance().stop();		// stop the game
-
-			Storable memento = outermostCell.createMemento();
-			outermostCell.transfer( memento, new Point(0,0), Cell.STORE );
-			memento.flush(out);
-
-			out.close();
-		}
-		catch( IOException theException )
-		{	JOptionPane.showMessageDialog( null, "Write Failed!",
-					"The Game of Life", JOptionPane.ERROR_MESSAGE);
+	{
+		Clock.instance().stop();
+		File file;
+		try { file = Files.userSelected(".", ".life", "Life File", "Write"); }
+		catch (FileNotFoundException cancelled) { return; }
+		try (OutputStream out = new FileOutputStream(file)) {
+			outermostCell.createMemento().flush(out);
+		} catch (IOException ex) {
+			JOptionPane.showMessageDialog(this, "Write Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
 		}
 	}
 
