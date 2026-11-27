@@ -411,8 +411,12 @@ public class Universe extends JPanel
 
 	private void doLoad()
 	{
+		// A window is about to open, so the game pauses first (team rule: a new
+		// window pauses the game and editing). The original kept ticking behind it.
 		Clock.instance().stop();
 		File file;
+		// Cancelling the chooser is not a failure, so no "Read Failed!" dialog.
+		// The original caught a cancel and a failed read in the same catch.
 		try { file = Files.userSelected(".", ".life", "Life File", "Load"); }
 		catch (FileNotFoundException cancelled) { return; }
 		try (InputStream in = new FileInputStream(file)) {
@@ -431,11 +435,14 @@ public class Universe extends JPanel
 
 	private void doStore()
 	{
-		Clock.instance().stop();
+		Clock.instance().stop();	// pause before the window opens, as in doLoad()
 		File file;
 		try { file = Files.userSelected(".", ".life", "Life File", "Write"); }
-		catch (FileNotFoundException cancelled) { return; }
+		catch (FileNotFoundException cancelled) { return; }	// cancelled, not failed
 		try (OutputStream out = new FileOutputStream(file)) {
+			// createMemento() already copies the live cells into the memento.
+			// The original transferred them once more here, so each coordinate
+			// was written to the file twice. Files stay readable both ways.
 			outermostCell.createMemento().flush(out);
 		} catch (IOException ex) {
 			JOptionPane.showMessageDialog(this, "Write Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
