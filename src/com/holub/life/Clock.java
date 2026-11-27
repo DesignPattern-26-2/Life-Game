@@ -100,6 +100,16 @@ public class Clock
 	{	startTicking( lastInterval );
 	}
 
+	/** Pause a running clock, or start a stopped one again at the speed it
+	 *  last ran at. With this, one menu item (and so one key) can do both.
+	 */
+	public void toggle()
+	{	if( isRunning() )
+			stop();
+		else
+			resume();
+	}
+
 	/** Create the menu that controls the clock speed and
 	 *  put it onto the menu site. 
 	 */
@@ -131,6 +141,13 @@ public class Clock
 		MenuSite.addLine(this,"Go","Slow",		 		modifier);
 		MenuSite.addLine(this,"Go","Medium",	 	 	modifier);
 		MenuSite.addLine(this,"Go","Fast",				modifier); // {=endSetup}
+
+		// Added below the original six items, which are unchanged: one item that
+		// pauses a running game and resumes a paused one, so that a single key
+		// (Space by default) can do both. It has its own listener because the
+		// listener above picks the speed from the first letter of the item's name.
+		MenuSite.addLine(this,"Go","-",					null);
+		MenuSite.addLine(this,"Go","Pause or Resume",	e -> toggle());
 	}	//{=endCreateMenus}
 
 	private Publisher publisher = new Publisher();

@@ -145,6 +145,68 @@ class ClockResumeTest
 		});
 	}
 
+	/** 목적: 키 하나(기본 Space)로 진행을 멈췄다 이었다 할 수 있게 넣은 toggle()이,
+	 *  돌고 있는 시계는 멈추는지 확인. Go > Pause or Resume 항목이 이것을 부른다. */
+	@Test
+	@DisplayName("돌고 있는 시계에 toggle()을 부르면 멈춘다")
+	void toggleStopsARunningClock() throws Exception
+	{	onEventThread( () ->
+		{	RecordingClock clock = new RecordingClock();
+			try
+			{	clock.startTicking( MEDIUM );
+
+				clock.toggle();
+
+				assertEquals( java.util.Arrays.asList( MEDIUM, 0 ), clock.requests );
+				assertFalse( clock.isRunning() );
+			}
+			finally
+			{	clock.stop();
+			}
+		});
+	}
+
+	/** 목적: 멈춘 시계의 toggle()이 정해진 속도가 아니라 마지막으로 돌던 속도로 다시
+	 *  시작하는지 확인. Go 메뉴에서 고른 속도를 Space 한 번에 잃으면 안 된다. */
+	@Test
+	@DisplayName("멈춘 시계에 toggle()을 부르면 마지막으로 돌던 속도로 다시 돈다")
+	void toggleResumesAtTheLastSpeed() throws Exception
+	{	onEventThread( () ->
+		{	RecordingClock clock = new RecordingClock();
+			try
+			{	clock.startTicking( FAST );
+				clock.toggle();		// 멈춤
+
+				clock.toggle();		// 다시 시작
+
+				assertEquals( java.util.Arrays.asList( FAST, 0, FAST ), clock.requests );
+				assertTrue( clock.isRunning() );
+			}
+			finally
+			{	clock.stop();
+			}
+		});
+	}
+
+	/** 목적: 프로그램을 켜고 바로 Space를 누른 경우. 한 번도 돌린 적이 없으면
+	 *  타임라인의 실행 버튼과 같은 속도(Slow)로 시작해야 한다. */
+	@Test
+	@DisplayName("한 번도 돌린 적이 없는 시계의 toggle()은 Slow로 시작한다")
+	void toggleBeforeAnyRunStartsSlow() throws Exception
+	{	onEventThread( () ->
+		{	RecordingClock clock = new RecordingClock();
+			try
+			{	clock.toggle();
+
+				assertEquals( java.util.Arrays.asList( SLOW ), clock.requests );
+				assertTrue( clock.isRunning() );
+			}
+			finally
+			{	clock.stop();
+			}
+		});
+	}
+
 	private static Cell emptyBoard()
 	{	return new Neighborhood( 8, new Neighborhood( 8, new Resident() ));
 	}
