@@ -53,10 +53,21 @@ class FeatureConnectionTest
 		final EditSession edits = new EditSession( board, () -> pauses++,
 												   () -> { notices++; history.boardEdited(); } );
 
+		private int generation = history.currentGeneration();	// 되돌리기 목록이 속한 세대
+
 		Wiring()
 		{	settings.addListener( changed ->
 			{	cells.activate();
 				history.reset();
+				edits.boardReplaced();
+			});
+
+			// 세대가 진행되거나 타임라인이 다른 세대로 옮겨 가면 되돌리기 목록을 비운다
+			history.addChangeListener( () ->
+			{	if( history.currentGeneration() != generation )
+				{	generation = history.currentGeneration();
+					edits.boardReplaced();
+				}
 			});
 		}
 
@@ -97,6 +108,8 @@ class FeatureConnectionTest
 
 		void menuDelete() { edits.run( clipboard::deleteSelection ); }
 		void menuCut()    { edits.run( clipboard::cut ); }
+		void menuUndo()   { edits.undo(); }
+		void menuRedo()   { edits.redo(); }
 
 		// ----- Universe.newGame()과 같은 순서: Clear와 패턴 Apply가 지난다 -----
 
@@ -104,6 +117,7 @@ class FeatureConnectionTest
 		{	pauses++;
 			change.run();
 			history.reset();
+			edits.boardReplaced();
 		}
 
 		// ----- 준비용 -----
@@ -256,6 +270,172 @@ class FeatureConnectionTest
 		assertEquals( 5, w.history.currentGeneration() );
 		assertEquals( 5, w.history.lastGeneration() );
 		assertTrue( w.timelineMatchesBoard() );
+	}
+
+	// ---------------------------------------------------------------
+	// Undo, Redo ↔ 타임라인, 규칙·경계, 새 게임
+	// ---------------------------------------------------------------
+
+	/** 목적: 같은 세대 안에서 Undo와 Redo가 보드를 되돌리고, 그 결과가
+	 *  타임라인의 현재 세대 기록에도 반영되는지 확인(Undo도 타임라인에는 편집이다). */
+	@Test
+	@DisplayName("[Undo] 같은 세대에서 Undo는 그은 5칸을 지우고 Redo는 되살린다. 타임라인 기록도 따라간다")
+	void undoAndRedoWithinOneGeneration()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		w.stroke( w.pen, 40, 44, 50 );
+
+		w.menuUndo();
+		assertEquals( 5, w.live(), "그은 5칸이 사라지고 글라이더만 남는다" );
+		assertTrue( w.timelineMatchesBoard() );
+
+		w.menuRedo();
+		assertEquals( 10, w.live() );
+		assertTrue( w.timelineMatchesBoard() );
+		assertEquals( 12, w.history.currentGeneration(), "세대 번호는 그대로다" );
+	}
+
+	/** 목적: Edit 메뉴 명령(Cut)도 Undo의 한 단위인지 확인. */
+	@Test
+	@DisplayName("[Undo] Cut을 Undo하면 잘라낸 칸이 돌아오고 타임라인 기록도 따라간다")
+	void undoOfACutBringsTheCellsBack()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 40, 44, 50 );
+		w.selectRegion( 39, 49, 45, 51 );
+		w.menuCut();
+		assertEquals( 0, w.live() );
+
+		w.menuUndo();
+
+		assertEquals( 5, w.live() );
+		assertTrue( w.timelineMatchesBoard() );
+	}
+
+	/** 목적: 세대가 진행되면 그 전의 편집을 되돌릴 수 없는지 확인(Undo는 같은 세대 안에서만). */
+	@Test
+	@DisplayName("[Undo] 세대가 진행된 뒤의 Undo는 아무것도 하지 않는다")
+	void undoDoesNothingAfterAGenerationPasses()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.stroke( w.pen, 40, 44, 50 );
+
+		w.advance( 1 );
+		java.util.Set<java.awt.Point> afterAdvance = w.board.liveCells();
+		int notices = w.notices;
+		w.menuUndo();
+
+		assertFalse( w.edits.canUndo() );
+		assertEquals( afterAdvance, w.board.liveCells(), "보드는 그대로다" );
+		assertEquals( notices, w.notices, "타임라인에도 알리지 않는다" );
+		assertEquals( 1, w.history.lastGeneration() );
+	}
+
+	/** 목적: 타임라인으로 다른 세대에 갔다 오면 되돌릴 수 없는지 확인.
+	 *  갔다 온 보드는 타임라인이 복원한 것이라 편집 목록과 맞는다는 보장이 없다. */
+	@Test
+	@DisplayName("[Undo] 타임라인으로 다른 세대에 갔다 온 뒤의 Undo는 아무것도 하지 않는다")
+	void undoDoesNothingAfterTheTimelineMoves()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 3 );
+		w.stroke( w.pen, 40, 44, 50 );
+		assertTrue( w.edits.canUndo() );
+
+		w.history.seek( 2 );
+		w.history.seek( 3 );
+		w.menuUndo();
+
+		assertFalse( w.edits.canUndo() );
+		assertEquals( 10, w.live(), "3세대의 기록(글라이더 + 그은 5칸)이 그대로 돌아와 있다" );
+	}
+
+	/** 목적: 새 게임(Clear)이 시작되면 이전 게임의 편집을 되돌릴 수 없는지 확인.
+	 *  0세대에서 Clear하면 세대 번호가 바뀌지 않으므로, 번호 변화만으로는 알 수 없는 경우다. */
+	@Test
+	@DisplayName("[Undo] Clear 뒤의 Undo는 아무것도 하지 않는다(0세대에서 Clear해도)")
+	void undoDoesNothingAfterClear()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 40, 44, 50 );
+		assertEquals( 0, w.history.currentGeneration() );
+
+		w.newGame( w.cells::clear );
+		w.menuUndo();
+
+		assertFalse( w.edits.canUndo() );
+		assertEquals( 0, w.live(), "지운 보드에 이전 게임의 칸이 되살아나지 않는다" );
+	}
+
+	/** 목적: 패턴 Apply도 새 게임이므로 같은지 확인. */
+	@Test
+	@DisplayName("[Undo] 패턴 Apply 뒤의 Undo는 아무것도 하지 않는다")
+	void undoDoesNothingAfterAPatternIsApplied()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 40, 44, 50 );
+
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+		w.menuUndo();
+
+		assertFalse( w.edits.canUndo() );
+		assertEquals( 3, w.live(), "Apply한 블링커 그대로다" );
+	}
+
+	/** 목적: 규칙·경계가 바뀌면 새 히스토리가 시작되므로 되돌릴 수 없는지 확인. */
+	@Test
+	@DisplayName("[Undo] Rule이나 Boundary를 바꾼 뒤의 Undo는 아무것도 하지 않는다")
+	void undoDoesNothingAfterARuleOrBoundaryChange()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 40, 44, 50 );
+
+		w.settings.setRule( LifeLikeRule.HIGHLIFE );
+		assertFalse( w.edits.canUndo() );
+
+		w.stroke( w.pen, 40, 44, 52 );
+		w.settings.setBoundary( BoundaryMode.TORUS );
+		w.menuUndo();
+
+		assertFalse( w.edits.canUndo() );
+		assertEquals( 10, w.live(), "그은 칸은 모두 그대로다" );
+	}
+
+	/** 목적: 드래그 한 번이 Undo의 한 단위이고, 셀을 바꾸지 않은 조작(영역 선택)은
+	 *  단위로 세지 않는지를 실제 도구로 확인. */
+	@Test
+	@DisplayName("[Undo] 드래그 한 번이 한 단위다. 영역 선택처럼 셀을 바꾸지 않은 조작은 단위가 아니다")
+	void oneStrokeIsOneUnitAndASelectionIsNone()
+	{	Wiring w = new Wiring();
+		w.stroke( w.pen, 10, 14, 10 );		// 단위 1
+		w.stroke( w.pen, 10, 14, 12 );		// 단위 2
+		w.selectRegion( 9, 9, 15, 13 );		// 셀 변화 없음
+
+		w.menuUndo();
+		assertEquals( 5, w.live(), "Undo 한 번에 두 번째 줄 5칸이 모두 사라진다" );
+
+		w.menuUndo();
+		assertEquals( 0, w.live() );
+		assertFalse( w.edits.canUndo() );
+	}
+
+	/** 목적: 과거 세대에서의 Undo도 그 세대의 편집으로 처리되는지 확인.
+	 *  과거에서 편집하면 타임라인 규약대로 뒤쪽 기록이 지워지는데,
+	 *  Undo는 보드만 되돌릴 뿐 지워진 기록까지 되살리지는 않는다(Undo의 범위 밖). */
+	@Test
+	@DisplayName("[Undo] 과거 세대에서 한 편집을 Undo하면 보드는 돌아오지만, 편집으로 지워진 뒤쪽 세대 기록은 돌아오지 않는다")
+	void undoInThePastRestoresTheBoardButNotTheDiscardedFuture()
+	{	Wiring w = new Wiring();
+		w.glider( 20, 20 );
+		w.advance( 12 );
+		w.history.seek( 5 );
+		java.util.Set<java.awt.Point> generationFive = w.board.liveCells();
+
+		w.draw( 60, 60 );
+		assertEquals( 5, w.history.lastGeneration() );
+
+		w.menuUndo();
+
+		assertEquals( generationFive, w.board.liveCells() );
+		assertTrue( w.timelineMatchesBoard() );
+		assertEquals( 5, w.history.lastGeneration(), "6~12세대 기록은 돌아오지 않는다" );
 	}
 
 	// ---------------------------------------------------------------

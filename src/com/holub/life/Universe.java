@@ -133,6 +133,24 @@ public class Universe extends JPanel
 		edits = new EditSession( board, () -> Clock.instance().stop(),
 										history::boardEdited );
 
+		// Undo 는 같은 세대 안의 편집만 되돌린다. 세대가 진행되거나 타임라인이
+		// 다른 세대로 옮겨 가면 보드가 편집이 아닌 이유로 바뀐 것이므로
+		// 되돌리기 목록을 비우게 한다. 편집이나 Undo 자체는 세대 번호를 바꾸지
+		// 않으므로 여기에 걸리지 않는다.
+
+		history.addChangeListener
+		(	new Runnable()
+			{	private int generation = history.currentGeneration();
+
+				public void run()
+				{	if( history.currentGeneration() != generation )
+					{	generation = history.currentGeneration();
+						edits.boardReplaced();
+					}
+				}
+			}
+		);
+
 		MouseAdapter mouse =				//{=Universe.mouse}
 			new MouseAdapter()
 			{	public void mousePressed(MouseEvent e)
@@ -216,6 +234,7 @@ public class Universe extends JPanel
 		(	changed ->
 			{	outermostCell.activate();
 				history.reset();
+				edits.boardReplaced();	// 새 히스토리에서는 이전 편집을 되돌릴 수 없다
 				repaint();
 			}
 		);
@@ -224,10 +243,10 @@ public class Universe extends JPanel
 	}
 
 	/** 새 게임: 보드 전체가 바뀐다(Clear, 패턴 Apply). 진행을 멈추고 보드를
-	 *  바꾼 뒤, 타임라인을 새 0세대부터 다시 시작한다. 현재 세대의 편집으로
-	 *  기록되는 마우스 도구나 Edit 메뉴(위의 edits)와는 다른 경로다.
-	 *  Load는 파일을 끝까지 읽는 데 성공한 뒤에만 보드를 바꾸므로
-	 *  doLoad()가 같은 일을 직접 한다.
+	 *  바꾼 뒤, 타임라인을 새 0세대부터 다시 시작하고 되돌리기 목록을 비운다.
+	 *  현재 세대의 편집으로 기록되는 마우스 도구나 Edit 메뉴(위의 edits)와는
+	 *  다른 경로다. Load는 파일을 끝까지 읽는 데 성공한 뒤에만 보드를
+	 *  바꾸므로 doLoad()가 같은 일을 직접 한다.
 	 *
 	 *  @param change 보드를 새 내용으로 바꾸는 일
 	 */
@@ -235,6 +254,7 @@ public class Universe extends JPanel
 	{	Clock.instance().stop();
 		change.run();
 		history.reset();
+		edits.boardReplaced();
 		repaint();
 	}
 
@@ -271,6 +291,28 @@ public class Universe extends JPanel
 	 */
 	private void addEditMenu( final ClipboardEditor clipboard )
 	{
+		// Undo 와 Redo 는 같은 세대 안에서 한 편집(마우스 도구, Cut, Delete,
+		// Paste)을 되돌린다. 되돌리기도 편집이라서 edits 가 타임라인에 알린다.
+		// 다른 항목처럼 MenuSite 로 등록하므로 단축키를 지정할 수 있다.
+
+		MenuSite.addLine( this, "Edit", "Undo",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	edits.undo();
+					repaint();
+				}
+			}
+		);
+
+		MenuSite.addLine( this, "Edit", "Redo",
+			new ActionListener()
+			{	public void actionPerformed(ActionEvent e)
+				{	edits.redo();
+					repaint();
+				}
+			}
+		);
+
 		final EditTool paste = new PasteTool( clipboard );
 
 		MenuSite.addLine( this, "Edit", "Copy",
@@ -380,6 +422,7 @@ public class Universe extends JPanel
 			outermostCell.clear();
 			outermostCell.transfer(memento, new Point(0, 0), Cell.LOAD);
 			history.reset();
+			edits.boardReplaced();	// a loaded board is a new game: nothing left to undo
 		} catch (IOException | ClassCastException ex) {
 			JOptionPane.showMessageDialog(this, "Read Failed!", "The Game of Life", JOptionPane.ERROR_MESSAGE);
 		}
