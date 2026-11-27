@@ -144,4 +144,66 @@ class KeyBinderTest {
 
 		assertFalse(press(SPACE));
 	}
+
+	/**
+	 * Swing은 Action을 실행하기 전에 켜져 있는지 묻고, 꺼져 있으면 실행하지 않고 키를 원래 받을 부품에 넘긴다.
+	 * 그 순서를 따라 한다. 실행했으면 true.
+	 */
+	private boolean pressAsSwingDoes(KeyStroke key) {
+		Object actionKey = target.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(key);
+		if (actionKey == null)
+			return false;
+		Action action = target.getActionMap().get(actionKey);
+		if (action == null || !action.isEnabled())
+			return false;
+		action.actionPerformed(new ActionEvent(target, ActionEvent.ACTION_PERFORMED, null));
+		return true;
+	}
+
+	// 목적: 글자가 입력되는 키(Space)의 명령은 입력 칸에 글자를 치는 동안 실행되지 않는다.
+	//       실제 창에서는 타임라인의 숫자 입력 칸에 글자를 칠 때 글자도 들어가고 명령도 실행됐다.
+	@Test
+	void typingKeyIsSkippedWhileTypingInATextInput() throws KeyConflictException {
+		boolean[] typing = { false };
+		registry.register(new TestCommand("tick", log));
+		keymap.bind(SPACE, "tick");
+		new KeyBinder(target, registry, keymap, () -> typing[0]).install();
+
+		typing[0] = true;
+		assertFalse(pressAsSwingDoes(SPACE));
+		assertTrue(log.isEmpty());
+
+		typing[0] = false; // 포커스가 입력 칸을 떠나면 다시 동작한다
+		assertTrue(pressAsSwingDoes(SPACE));
+		assertEquals(Arrays.asList("tick"), log);
+	}
+
+	// 목적: Ctrl과 함께 누르는 키는 글자를 입력하지 않으므로 입력 칸에 포커스가 있어도 실행된다.
+	@Test
+	void commandKeyStillWorksWhileTypingInATextInput() throws KeyConflictException {
+		registry.register(new TestCommand("load", log));
+		keymap.bind(CTRL_L, "load");
+		new KeyBinder(target, registry, keymap, () -> true).install();
+
+		assertTrue(pressAsSwingDoes(CTRL_L));
+		assertEquals(Arrays.asList("load"), log);
+	}
+
+	// 목적: 어떤 키를 "글자가 입력되는 키"로 보는지 고정한다. 여기서 빠진 키는 입력 칸에서도 명령을 실행한다.
+	@Test
+	void typingKeysAreUnmodifiedCharacterKeys() {
+		assertTrue(KeyBinder.isTypingKey(SPACE));
+		assertTrue(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_1, 0)));
+		assertTrue(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_V, 0)));
+		assertTrue(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_A, InputEvent.SHIFT_DOWN_MASK)));
+		assertTrue(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_PERIOD, 0)));
+		assertTrue(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_NUMPAD5, 0)));
+
+		assertFalse(KeyBinder.isTypingKey(CTRL_L));
+		assertFalse(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_1, InputEvent.CTRL_DOWN_MASK)));
+		assertFalse(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0)));
+		assertFalse(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0)));
+		assertFalse(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0)));
+		assertFalse(KeyBinder.isTypingKey(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, 0)));
+	}
 }
