@@ -365,10 +365,8 @@ public class Universe extends JPanel
 
 	private static final Color SELECTION_COLOR = new Color( 0, 70, 200 );
 
-	/** 선택 영역이 있으면 그 테두리를 그린다. 반투명 채우기를 쓰지 않는
-	 *  이유: 게임이 도는 동안에는 바뀐 블록만 다시 그려지므로(refreshNow),
-	 *  그 위에 매번 덧칠하면 안 바뀐 부분의 색이 점점 진해진다. 불투명한
-	 *  테두리는 몇 번을 다시 그려도 결과가 같다.
+	/** 선택 영역이 있으면 그 테두리를 그린다. 보드 전체를 그린 뒤에 그 위에
+	 *  그린다(paint 참고). 불투명한 테두리라 몇 번을 다시 그려도 결과가 같다.
 	 */
 	private void paintSelection( Graphics g )
 	{	Rectangle selected = selectTool.selection();
@@ -468,35 +466,10 @@ public class Universe extends JPanel
 		paintSelection(g);
 	}
 
-	/** Force a screen refresh by queing a request on
-	 *  the Swing event queue. This is an example of the
-	 *  Active Object pattern (not covered by the Gang of Four).
-	 *  This method is called on every clock tick. Note that
-	 *  the redraw() method on a given <code>Cell</code>
-	 *  does nothing if the <code>Cell</code> doesn't
-	 *  have to be refreshed.
-	 */
-
-	private void refreshNow()
-	{	SwingUtilities.invokeLater
-		(	new Runnable()
-			{	public void run()
-				{	Graphics g = getGraphics();
-					if( g == null )		// Universe not displayable
-						return;
-					try
-					{
-						Rectangle panelBounds = getBounds();
-						panelBounds.x = 0;
-						panelBounds.y = 0;
-						outermostCell.redraw(g, panelBounds, false); //{=Universe.redraw2}
-						paintSelection(g);
-					}
-					finally
-					{	g.dispose();
-					}
-				}
-			}
-		);
-	}
+	// The original refreshNow() is removed. It was queued from the timer thread on
+	// every tick and redrew only the blocks that the last computation had changed.
+	// The board now also changes without a computation (timeline moves, undo,
+	// patterns), and a block's "changed" mark is updated only by a computation, so
+	// a partial redraw could leave old cells on the screen. Every change is drawn
+	// by the history's change listener calling repaint() instead (see constructor).
 }
