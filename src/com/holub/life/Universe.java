@@ -59,6 +59,9 @@ public class Universe extends JPanel
 	// The constructor is private so that the universe can be created
 	// only by an outer-class method [Neighborhood.createUniverse()].
 
+	/** 규칙과 경계 모드. 모든 Resident가 이 객체를 공유한다. */
+	private final SimulationSettings settings = new SimulationSettings();
+
 	private Universe()
 	{	// Create the nested Cells that comprise the "universe." A bug
 		// in the current implementation causes the program to fail
@@ -69,7 +72,7 @@ public class Universe extends JPanel
 						(	DEFAULT_GRID_SIZE,
 							new Neighborhood
 							(	DEFAULT_GRID_SIZE,
-								new Resident()
+								new Resident( settings )
 							)
 						);
 
@@ -171,11 +174,9 @@ public class Universe extends JPanel
 		Clock.instance().addClockListener //{=Universe.clock.subscribe}
 		(	new Clock.Listener()
 			{	public void tick()
-				{	if( outermostCell.figureNextState
-						   ( Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,
-							 Cell.DUMMY,Cell.DUMMY,Cell.DUMMY,Cell.DUMMY
-						   )
-					  )
+				{	// 원본은 여기서 이웃으로 Cell.DUMMY 8개를 직접 넘겼다.
+					// 이제 어떤 이웃을 넘길지는 경계 모드(Strategy)가 정한다.
+					if( settings.boundary().figureNextState( outermostCell ) )
 					{	if( outermostCell.transition() )
 							refreshNow();
 					}
@@ -192,6 +193,17 @@ public class Universe extends JPanel
 		addToolToMenu( BrushTool.pen(board),	Cursor.CROSSHAIR_CURSOR, KEEP_RUNNING );
 		addToolToMenu( BrushTool.eraser(board),	Cursor.HAND_CURSOR,		 KEEP_RUNNING );
 		addToolToMenu( selectTool,				Cursor.TEXT_CURSOR,		 PAUSE_GAME   );
+
+		// 규칙이나 경계가 바뀌면 안정된 블록도 다시 계산해야 하므로
+		// 모든 블록을 깨운다.
+		settings.addListener
+		(	changed ->
+			{	outermostCell.activate();
+				repaint();
+			}
+		);
+
+		new SimulationMenu( settings, this );
 	}
 
 	private static final boolean KEEP_RUNNING = false, PAUSE_GAME = true;
@@ -305,6 +317,11 @@ public class Universe extends JPanel
 	private Point cellAt( MouseEvent e )
 	{	return CellCoordinates.fromPixel( e.getPoint(), getBounds().width,
 										  outermostCell.widthInCells() );
+	}
+
+	/** 현재 규칙과 경계 모드 설정 */
+	public SimulationSettings settings()
+	{	return settings;
 	}
 
 	/** Singleton Accessor. The Universe object itself is manufactured

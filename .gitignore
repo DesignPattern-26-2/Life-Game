@@ -1,5 +1,12 @@
-# 컴파일 결과 (scripts/test 스크립트가 만든다)
+# 컴파일 결과 (scripts/test 스크립트와 IntelliJ가 만든다)
 /out/
 
 # 테스트 실행용 JUnit jar (스크립트가 내려받는다. 저장소에는 올리지 않는다)
 /lib/
+
+# IntelliJ 개인 설정
+.idea/
+*.iml
+
+# macOS
+.DS_Store

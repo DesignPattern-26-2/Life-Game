@@ -19,9 +19,11 @@ public final class Life extends JFrame
 	{	new Life();
 	}
 
+	private static final String TITLE = "The Game of Life. "
+					+"(c)2003 Allen I. Holub <http://www.holub.com>";
+
 	private Life()
-	{	super( "The Game of Life. "
-					+"(c)2003 Allen I. Holub <http://www.holub.com>");
+	{	super( TITLE );
 
 		// Must establish the MenuSite very early in case
 		// a subcomponent puts menus on it.
@@ -37,7 +39,16 @@ public final class Life extends JFrame
 		// [shortcut] installed after the Grid/Go menus exist: loads the keymap and binds keys on the root pane
 		shortcuts.install();
 
+		// 현재 규칙과 경계 모드를 창 제목에 표시한다.
+		SimulationSettings settings = Universe.instance().settings();
+		showSettingsInTitle( settings );
+		settings.addListener( this::showSettingsInTitle );
+
 		pack();
 		setVisible( true );
+	}
+
+	private void showSettingsInTitle( SimulationSettings settings )
+	{	setTitle( TITLE + "  —  " + settings.describe() );
 	}
 }
