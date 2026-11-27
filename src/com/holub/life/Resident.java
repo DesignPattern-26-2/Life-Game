@@ -28,6 +28,23 @@ public final class Resident implements Cell
 
 	private boolean isStable(){return amAlive == willBeAlive; }
 
+	/** 생사 판정에 쓸 규칙을 담은 설정. 같은 Universe의 모든 Resident가
+	 *  하나의 객체를 공유한다 ({@link #create}가 참조를 그대로 넘김).
+	 */
+	private final SimulationSettings settings;
+
+	/** 기존 생성자. 기본 설정(Conway 규칙)을 쓴다. */
+	public Resident()
+	{	this( new SimulationSettings() );
+	}
+
+	/** @param settings 이 셀과 이 셀에서 복제될 셀들이 공유할 설정 */
+	public Resident( SimulationSettings settings )
+	{	if( settings == null )
+			throw new IllegalArgumentException( "settings is null" );
+		this.settings = settings;
+	}
+
 	/** figure the next state.
 	 *  @return true if the cell is not stable (will change state on the
 	 *  next transition().
@@ -58,7 +75,9 @@ public final class Resident implements Cell
 		if( southeast.isAlive()) ++neighbors;
 		if( southwest.isAlive()) ++neighbors;
 
-		willBeAlive = (neighbors==3 || (amAlive && neighbors==2));
+		// 원본: willBeAlive = (neighbors==3 || (amAlive && neighbors==2));
+		// 규칙 판단을 Strategy 객체에 위임한다.
+		willBeAlive = settings.rule().nextState( amAlive, neighbors );
 		return !isStable();
 	}
 
@@ -104,7 +123,12 @@ public final class Resident implements Cell
 
 	public void	   clear()			{amAlive = willBeAlive = false; }
 	public boolean isAlive()		{return amAlive;			    }
-	public Cell    create()			{return new Resident();			}
+	public Cell    create()			{return new Resident(settings);	}
+
+	/** 단일 셀은 자신이 속한 블록이 활성화되면 항상 계산되므로
+	 *  따로 할 일이 없다.
+	 */
+	public void    activate()		{								}
 	public int 	   widthInCells()	{return 1;}
 
 	public Direction isDisruptiveTo()

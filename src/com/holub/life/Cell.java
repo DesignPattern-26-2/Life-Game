@@ -86,6 +86,14 @@ public interface Cell
 
 	void clear();
 
+	/** 이 셀과 모든 하위 셀을 "다음 tick에 반드시 다시 계산"하도록 표시한다.
+	 *  <p>
+	 *  Neighborhood는 변화가 없는 블록의 계산을 건너뛴다. 그런데 규칙이나
+	 *  경계 모드가 바뀌면 지금은 안정된 블록도 다음 세대에 바뀔 수 있으므로,
+	 *  설정이 바뀔 때 이 메서드로 모든 블록을 깨운다.
+	 */
+	void activate();
+
 	/**
 	 *	The Cell.Memento interface stores the state
 	 *	of a Cell and all its subcells for future restoration.
@@ -145,7 +153,8 @@ public interface Cell
 		public Cell 	 create()	   	   	{return this;			  }
 		public Direction isDisruptiveTo()	{return Direction.NONE;	  }
 		public void 	 clear()		   	{						  }
-		public int 		 widthInCells()  	{return 0;				  }
+		public void 	 activate()		   	{						  }
+		public int		 widthInCells()  	{return 0;				  }
 		public boolean	 transition()		{return false;			  }
 
 		public void	userClicked(Point h, Rectangle s				){}

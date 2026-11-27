@@ -437,6 +437,17 @@ public final class Neighborhood implements Cell
 		amActive = false;
 	}
 
+	/** 이 블록과 모든 하위 블록이 다음 tick에 계산되도록 한다.
+	 *  @see Cell#activate
+	 */
+	public void activate()
+	{	amActive = true;
+
+		for( int row = 0; row < gridSize; ++row )
+			for( int column = 0; column < gridSize; ++column )
+				grid[row][column].activate();
+	}
+
 	/** Cause subcells to add an annotation to the indicated
 	 *  memento if they happen to be alive.
 	 */
@@ -450,7 +461,12 @@ public final class Neighborhood implements Cell
 		for( int row = 0; row < gridSize; ++row )
 		{   for( int column = 0; column < gridSize; ++column )
 			{	if(grid[row][column].transfer(memento,upperLeft,load))
-					amActive = true;
+				{	amActive = true;
+					// A loaded live subcell must wake neighboring blocks on
+					// the first tick, including at neighborhood boundaries.
+					if( load )
+						rememberThatCellAtEdgeChangedState(row, column);
+				}
 
 				Direction d =
 						grid[row][column].isDisruptiveTo();
@@ -461,6 +477,14 @@ public final class Neighborhood implements Cell
 				upperLeft.translate( subcellWidth, 0);
 			}
 			upperLeft.translate(-myWidth, subcellWidth );
+		}
+		// A snapshot contains live cells, not incremental calculation caches.
+		// Recompute every block once after LOAD, including empty neighbors
+		// in which cells may be born across a neighborhood boundary.
+		if (load) {
+			amActive = true;
+			activeEdges.add(Direction.ALL);
+			oneLastRefreshRequired = true;
 		}
 		return amActive;
 	}
