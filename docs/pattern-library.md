@@ -66,7 +66,7 @@ Life, Cell, Resident, Clock, Direction, Storable 및 기존 io/ui/tools/asynch J
 | GliderPattern.java, BlinkerPattern.java, BlockPattern.java, ToadPattern.java | 기본 네 모양 정의 |
 | PatternFactory.java | 최초 기본 패턴 생성 |
 | PatternPlacer.java | 유효성 검사, 중앙 좌표 계산, 보드 초기화 및 Memento 적용 |
-| PresetCommand.java, PlacePresetCommand.java | 배치 요청의 객체화 |
+| PlacePresetCommand.java | 배치 요청의 객체화 (Runnable 구현. 별도 인터페이스 PresetCommand는 구현이 하나뿐이라 없앴다) |
 
 ### 이번에 추가한 7개 파일
 
@@ -92,7 +92,7 @@ Subject는 PatternEditorModel, Observer는 PatternEditorDialog와 PatternCanvas�
 
 ### Command — 1차 개선 재사용
 
-PresetCommand와 PlacePresetCommand가 요청을 객체화한다. PatternLibraryMenu의 load 콜백이 호출하며 실제 배치는 PatternPlacer가 담당한다.
+PlacePresetCommand가 요청을 객체화한다(Runnable 구현). PatternLibraryMenu의 load 콜백이 만들어서 새 게임 콜백에 넘기고, 받은 쪽(Universe)이 실행 시점을 정한다. 실제 배치는 PatternPlacer가 담당한다.
 
 적용 이유: 고정 메뉴를 편집 창으로 바꿔도 배치 알고리즘을 복사하거나 UI 이벤트 안에 다시 작성하지 않는다. StoredPattern도 LifePattern을 구현하여 같은 명령으로 배치된다. 저장·삭제까지 불필요하게 Command 클래스로 늘리지는 않았다. Undo나 명령 이력은 구현하지 않았다.
 
@@ -159,7 +159,7 @@ classDiagram
     Universe --> PatternLibraryMenu : installWhenReady
     PatternLibraryMenu --> PatternEditorDialog : opens
     PatternLibraryMenu --> PlacePresetCommand : load
-    PresetCommand <|.. PlacePresetCommand
+    Runnable <|.. PlacePresetCommand
     PlacePresetCommand --> LifePattern
     PlacePresetCommand --> PatternPlacer
     PatternPlacer --> Cell : Memento / transfer

@@ -151,9 +151,9 @@ public class PatternPresetTest {
     @Test
     public void commandEncapsulatesPresetPlacement() {
         Cell board = board();
-        PresetCommand command = new PlacePresetCommand(
+        Runnable command = new PlacePresetCommand(
                 board, PatternFactory.create(PatternFactory.Type.GLIDER));
-        command.execute();
+        command.run();
         assertEquals(5, liveCells(board).size());
     }
 

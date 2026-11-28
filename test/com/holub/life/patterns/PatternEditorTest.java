@@ -123,7 +123,7 @@ class PatternEditorTest {
     @Test void userPatternUsesExistingPlacementCommand() throws Exception {
         PatternEditorModel m = model(); m.setName("Corners"); m.setAlive(0, 0, true); m.setAlive(63, 63, true); m.save();
         Cell board = new Neighborhood(8, new Neighborhood(8, new Resident()));
-        new PlacePresetCommand(board, m.patternToLoad()).execute();
+        new PlacePresetCommand(board, m.patternToLoad()).run();
         Cell.Memento snapshot = (Cell.Memento) board.createMemento();
         assertTrue(snapshot.isAlive(new Point(0, 0))); assertTrue(snapshot.isAlive(new Point(63, 63)));
     }

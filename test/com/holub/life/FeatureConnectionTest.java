@@ -373,7 +373,7 @@ class FeatureConnectionTest
 	{	Wiring w = new Wiring();
 		w.stroke( w.pen, 40, 44, 50 );
 
-		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() ) );
 		w.menuUndo();
 
 		assertFalse( w.edits.canUndo() );
@@ -453,7 +453,7 @@ class FeatureConnectionTest
 		w.advance( 12 );
 		int paused = w.pauses;
 
-		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() ) );
 
 		assertEquals( 3, w.live(), "글라이더는 지워지고 블링커 3칸만 있다" );
 		assertEquals( 0, w.history.currentGeneration() );
@@ -469,7 +469,7 @@ class FeatureConnectionTest
 	@DisplayName("[3] Apply한 패턴에서 세대를 진행하고 0세대로 되돌아갈 수 있다")
 	void theTimelineContinuesFromAnAppliedPattern()
 	{	Wiring w = new Wiring();
-		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() )::execute );
+		w.newGame( new PlacePresetCommand( w.cells, new BlinkerPattern() ) );
 		java.util.Set<java.awt.Point> placed = w.board.liveCells();
 
 		w.advance( 1 );
