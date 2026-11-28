@@ -190,7 +190,7 @@ sequenceDiagram
     User->>UI: load
     UI->>Model: patternToLoad()
     Model-->>UI: LifePattern
-    UI->>Command: 배치 콜백으로 execute()
+    UI->>Command: 배치 콜백으로 run()
     Command->>Board: PatternPlacer를 통해 상태 반영
     UI->>UI: 창 닫기
 ```
