@@ -3,15 +3,14 @@ package com.holub.life.edit;
 import java.awt.Point;
 import java.util.ArrayDeque;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
- * 되돌릴 수 있는 편집의 목록(Undo 와 Redo).
+ * 되돌릴 수 있는 편집의 목록(Undo 와 Redo). Command 패턴의 명령 기록이다.
  *
- * <p>편집 한 번이 켠 칸과 끈 칸만 기억한다. 어떤 도구나 명령이 한 편집인지는
- * 모르고, 보드는 {@link BoardEditor} 로만 다룬다. 보드 전체를 복사해 두지
- * 않으므로 편집을 여러 번 해도 기억하는 양은 바뀐 칸 수만큼이다.
+ * <p>편집 한 번은 {@link CellChange} 하나다. 이 클래스는 그 객체를 순서대로
+ * 쌓아 두고, 되돌리거나 다시 실행하라고 시키기만 한다. 어떤 칸이 어떻게
+ * 바뀌는지, 어떤 도구나 명령이 한 편집인지는 모른다.
  *
  * <p>되돌리기는 기억해 둔 칸을 반대로 돌려놓는 일이다. 그래서 보드가 편집이
  * 아닌 이유로 바뀌면(세대 진행, 타임라인 이동, 새 게임) 목록은 더 이상 지금의
@@ -20,20 +19,9 @@ import java.util.Set;
  */
 final class EditUndo
 {
-	/** 편집 한 번이 바꾼 칸 */
-	private static final class Change
-	{	final Set<Point> born;		// 이 편집으로 켜진 칸
-		final Set<Point> died;		// 이 편집으로 꺼진 칸
-
-		Change( Set<Point> born, Set<Point> died )
-		{	this.born = born;
-			this.died = died;
-		}
-	}
-
-	private final BoardEditor   board;
-	private final Deque<Change> done   = new ArrayDeque<Change>();	// 되돌릴 수 있는 편집. 맨 위가 가장 최근
-	private final Deque<Change> undone = new ArrayDeque<Change>();	// 되돌린 편집. 다시 실행할 수 있다
+	private final BoardEditor       board;
+	private final Deque<CellChange> done   = new ArrayDeque<CellChange>();	// 되돌릴 수 있는 편집. 맨 위가 가장 최근
+	private final Deque<CellChange> undone = new ArrayDeque<CellChange>();	// 되돌린 편집. 다시 실행할 수 있다
 
 	EditUndo( BoardEditor board )
 	{	this.board = board;
@@ -46,15 +34,11 @@ final class EditUndo
 	 *          올리지 않고 false.
 	 */
 	boolean record( Set<Point> before, Set<Point> after )
-	{	Set<Point> born = new HashSet<Point>( after );
-		born.removeAll( before );
-		Set<Point> died = new HashSet<Point>( before );
-		died.removeAll( after );
-
-		if( born.isEmpty() && died.isEmpty() )
+	{	CellChange change = CellChange.between( board, before, after );
+		if( change.isEmpty() )
 			return false;
 
-		done.push( new Change(born, died) );
+		done.push( change );
 		undone.clear();				// 새 편집을 하면, 되돌렸던 편집은 다시 실행할 수 없다
 		return true;
 	}
@@ -63,9 +47,8 @@ final class EditUndo
 	boolean undo()
 	{	if( done.isEmpty() )
 			return false;
-		Change change = done.pop();
-		setAll( change.born, false );
-		setAll( change.died, true  );
+		CellChange change = done.pop();
+		change.undo();
 		undone.push( change );
 		return true;
 	}
@@ -74,9 +57,8 @@ final class EditUndo
 	boolean redo()
 	{	if( undone.isEmpty() )
 			return false;
-		Change change = undone.pop();
-		setAll( change.born, true  );
-		setAll( change.died, false );
+		CellChange change = undone.pop();
+		change.redo();
 		done.push( change );
 		return true;
 	}
@@ -89,9 +71,4 @@ final class EditUndo
 
 	boolean canUndo() { return !done.isEmpty();   }
 	boolean canRedo() { return !undone.isEmpty(); }
-
-	private void setAll( Set<Point> cells, boolean alive )
-	{	for( Point cell : cells )
-			board.setAlive( cell.x, cell.y, alive );
-	}
 }
