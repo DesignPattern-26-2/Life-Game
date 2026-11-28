@@ -1,6 +1,6 @@
 package com.holub.life.patterns;
 
-/** Factory method for creating preset Life patterns. */
+/** Simple factory (one static creation method with a switch) for the preset Life patterns; not the GoF Factory Method. */
 public final class PatternFactory {
     public enum Type { GLIDER, BLINKER, BLOCK, TOAD }
 
