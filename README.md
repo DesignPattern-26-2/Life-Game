@@ -19,7 +19,7 @@ CAU CSE DP project
 Java 8 이상에서 실행할 수 있습니다. 저장소 루트에서 소스를 컴파일한 뒤 실행하세요.
 
 ```sh
-javac -encoding UTF-8 -d bin -sourcepath src src/com/holub/life/Life.java
+javac -encoding UTF-8 -cp bin -d bin -sourcepath src src/com/holub/life/Life.java
 java -cp bin com.holub.life.Life
 ```
 
